@@ -21,11 +21,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:name=".Main.CustomApplication">
+        android:name=".App">
         <activity android:name=".Main.SplashActivity"
             android:theme="@style/SplashTheme"
-            android:screenOrientation="portrait"
-            android:launchMode="singleTask">
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -39,9 +38,10 @@
 
         <activity android:name=".Chatting.ChattingActivity"
             android:screenOrientation="portrait"
-            android:launchMode="singleTask"/>
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize" />
         
-        <service android:name=".Service.HService"/>
+        <service android:name=".Service.HService" />
 
         <receiver android:name=".Service.HReceiver">
             <intent-filter>

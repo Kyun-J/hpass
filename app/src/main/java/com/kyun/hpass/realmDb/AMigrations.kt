@@ -11,7 +11,7 @@ class AMigrations : RealmMigration {
     override fun migrate(realm: DynamicRealm?, oldVersion: Long, newVersion: Long) {
         var oldv = oldVersion
 
-        if(oldv < 1) {
+        if(oldv == 0 as Long) {
 
             oldv++
         }

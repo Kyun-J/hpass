@@ -15,24 +15,16 @@ open class Peoples : RealmModel {
         internal set
     var isFriend : Boolean = false
         internal set
-
-    fun set(id : String) : Peoples {
-        UserId = id
-
-        return this
-    }
+    var doRequest : Boolean = false
+        internal set
+    var Requested : Boolean = false
+        internal set
+    var isBan : Boolean = false
+        internal set
 
     fun set(id : String, name : String) : Peoples {
         UserName = name
         UserId = id
-
-        return this
-    }
-
-    fun set(id : String, name : String, friend : Boolean) : Peoples {
-        UserName = name
-        UserId = id
-        isFriend = friend
 
         return this
     }

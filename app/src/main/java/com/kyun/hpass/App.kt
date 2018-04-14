@@ -1,19 +1,16 @@
-package com.kyun.hpass.Main
+package com.kyun.hpass
 
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
-import android.util.Log
-import com.kyun.hpass.objects.Singleton
-import com.kyun.hpass.realmDb.AMigrations
+import com.kyun.hpass.util.objects.Singleton
 import io.realm.Realm
-import java.io.FileNotFoundException
 
 
 /**
  * Created by kyun on 2018. 3. 13..
  */
-class CustomApplication : Application() {
+class App : Application() {
 
     var mAppStatus = AppStatus.FOREGROUND
 
@@ -22,12 +19,7 @@ class CustomApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Realm.init(this)
-        try {
-            Realm.migrateRealm(Singleton.mConfig,AMigrations())
-        } catch (e : FileNotFoundException) {
-            Log.e("Realm","MigrationErr",e)
-            DoAppDestory()
-        }
+        Realm.setDefaultConfiguration(Singleton.mConfig)
 
         registerActivityLifecycleCallbacks(LifecycleCallbacks())
     }
@@ -52,7 +44,6 @@ class CustomApplication : Application() {
     fun DoAppDestory() {
         android.os.Process.killProcess(android.os.Process.myPid())
     }
-
 
     inner class LifecycleCallbacks : ActivityLifecycleCallbacks {
 

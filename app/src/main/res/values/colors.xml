@@ -8,4 +8,5 @@
     <color name="colorAlertRed">#FF5B49</color>
     <color name="colorChocolate">#423630</color>
     <color name="colorWhite">#FFFFFF</color>
+    <color name="colorWhiteText">#cdd1d7</color>
 </resources>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <android.support.v7.widget.Toolbar
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="4dp"
+        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+        android:id="@+id/chat_toolbar"
+        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
+
+    <android.support.v7.widget.RecyclerView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:id="@+id/chat_text_list"
+        android:scrollbars="vertical"
+        android:scrollbarStyle="outsideOverlay"
+        android:background="#818b9c"
+        app:layout_constraintBottom_toTopOf="@+id/chat_text_edit"
+        app:layout_constraintTop_toBottomOf="@+id/chat_toolbar"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/chat_text_edit"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <EditText
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/chat_edit"
+            android:hint="내용을 입력하세요!"
+            android:scrollHorizontally="true"
+            android:layout_marginLeft="20dp"
+            android:layout_weight="1"
+            android:background="@drawable/ychatcontinue"/>
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/chat_confirm"
+            android:text="전송"/>
+    </LinearLayout>
+</android.support.constraint.ConstraintLayout>

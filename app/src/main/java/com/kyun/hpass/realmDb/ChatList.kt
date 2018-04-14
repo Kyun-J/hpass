@@ -17,10 +17,12 @@ open class ChatList : RealmModel {
         internal set
     var Content : String = ""
         internal set
-    var Time : String = ""
+    var Time : Long = 0
+        internal set
+    var check : Boolean = false
         internal set
 
-    fun set(roomid : String, chatid : Int, userid : String, content : String , time : String) : ChatList {
+    fun set(roomid : String, chatid : Int, userid : String, content : String , time : Long) : ChatList {
         RoomId = roomid
         ChatId = chatid
         UserId = userid

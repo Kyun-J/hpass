@@ -1,16 +1,25 @@
 package com.kyun.hpass.Chatting
 
-/**
- * Created by kyun on 2018. 3. 19..
- */
+import com.chad.library.adapter.base.entity.MultiItemEntity
 
-class ChattingRecyclerItem {
+class ChattingRecyclerItem : MultiItemEntity {
 
-    var id : String = ""
-    var title : String = ""
-    var recent : String = ""
-    var time : String = ""
-    var users : Int = 0
-    var stack : Int = 0
-    var alarm : Boolean = true
+    companion object {
+        val Istarted = 0
+        val Icontinued = 1
+        val Ystarted = 2
+        val Ycontinued = 3
+        val noti = 4
+        val day = 5
+    }
+
+    var itemtype : Int = 0
+    var contents : String = ""
+    var name : String = ""
+    var time : Long = 0
+
+
+    override fun getItemType(): Int {
+        return itemtype
+    }
 }

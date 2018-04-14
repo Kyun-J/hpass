@@ -1,17 +1,11 @@
 <resources>
     <string name="app_name">hpass</string>
 
-    <!--topics-->
-    <!--users-->
-    <string name="newF">nf</string>
-    <!--chat-->
-    <string name="chat">ca</string>
-    <string name="inviteR">ir</string>
-    <string name="exitR">er</string>
-    <string name="updateR">ur</string>
-    <string name="lastId">li</string>
-    <!--emergency-->
-    <string name="emergency">em</string>
-    <string name="location">lo</string>
+    <!--else-->
+    <string name="unknown">알수없음</string>
+    <string name="newbe">새로운 유저</string>
+    <string name="newin"> 님이 참가하였습니다.</string>
+    <string name="chatout"> 님이 나갔습니다.</string>
+    <string name="here">여기까지 읽으셨습니다.</string>
 
 </resources>
