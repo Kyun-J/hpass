@@ -9,16 +9,14 @@ import android.os.Bundle
 import android.os.IBinder
 import android.support.v4.app.Fragment
 import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import com.kyun.hpass.R
 import com.kyun.hpass.Service.HService
-import com.kyun.hpass.realmDb.ChatList
-import com.kyun.hpass.realmDb.ChatMember
-import com.kyun.hpass.realmDb.ChatRoom
+import com.kyun.hpass.realmDb.Nomal.ChatList
+import com.kyun.hpass.realmDb.Nomal.ChatMember
+import com.kyun.hpass.realmDb.Nomal.ChatRoom
 import io.realm.Realm
 import io.realm.Sort
 import kotlinx.android.synthetic.main.fragment_chatting_list.*
@@ -75,7 +73,7 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
                 item.recent = chat.Content
                 item.time = chat.Time
             }
-            item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size
+            item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size - 1
             item.stack = r.Count
             item.alarm = r.isAlarm
             roomlist.add(item)
@@ -123,7 +121,7 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
                     item.title = r.RoomName
                     item.recent = if(chat == null) "" else chat.Content
                     item.time = if(chat == null) 0 else chat.Time
-                    item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size
+                    item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size - 1
                     item.stack = r.Count
                     item.alarm = r.isAlarm
                     adapter!!.setData(i,item)
@@ -135,7 +133,7 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
                     item.title = r.RoomName
                     item.recent = if(chat == null) "" else chat.Content
                     item.time = if(chat == null) 0 else chat.Time
-                    item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size
+                    item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size - 1
                     item.stack = r.Count
                     item.alarm = r.isAlarm
                     adapter!!.addData(0,item)

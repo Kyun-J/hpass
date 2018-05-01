@@ -22,6 +22,12 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:name=".App">
+        <meta-data
+            android:name="com.kakao.sdk.AppKey"
+            android:value="@string/kakao_app_key" />
+        <meta-data
+            android:name="com.kakao.sdk.ClientSecret"
+            android:value="@string/kakao_secret_key"/>
         <activity android:name=".Main.SplashActivity"
             android:theme="@style/SplashTheme"
             android:screenOrientation="portrait">
@@ -39,7 +45,11 @@
         <activity android:name=".Chatting.ChattingActivity"
             android:screenOrientation="portrait"
             android:launchMode="singleTask"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize"/>
+        <activity android:name=".Main.LoginActivity"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustUnspecified"/>
         
         <service android:name=".Service.HService" />
 

@@ -19,7 +19,7 @@ import org.eclipse.paho.client.mqttv3.*
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence
 import com.kyun.hpass.R
 import com.kyun.hpass.util.objects.IgnoreValues
-import com.kyun.hpass.realmDb.*
+import com.kyun.hpass.realmDb.Nomal.*
 import io.realm.Realm
 
 import io.realm.kotlin.deleteFromRealm
@@ -39,7 +39,7 @@ class HService : Service() {
 
     //주요 기능
     private var mqttclient : MqttAsyncClient? = null
-    private var realm : Realm = Realm.getDefaultInstance()
+    private var realm : Realm? = null
     private val handler : Handler = Handler()
 
     /** topics **/
@@ -106,15 +106,22 @@ class HService : Service() {
             myId = (getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).line1Number
         else
             myId = IgnoreValues.testUser
+        if(myId == "") myId = IgnoreValues.testUser
         Singleton.MyId = myId
-        myN = realm.where(MyInfo::class.java).findFirst()!!.Name
-        nid = PreferenceManager.getDefaultSharedPreferences(this).getInt("nid",0)
+        nid = PreferenceManager.getDefaultSharedPreferences(this).getInt("nid", 0)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { //realm mqtt 세팅
         Log.i("HService","Start")
-        mqttSetting()
-        if(realm.isClosed) realm = Realm.getDefaultInstance()
+        Singleton.addKeyCheck (object : Singleton.isCheck {
+            override fun Check() {
+                mqttSetting()
+                if(realm == null || realm!!.isClosed) {
+                    realm = Realm.getDefaultInstance()
+                    myN = realm!!.where(MyInfo::class.java).findFirst()!!.Name
+                }
+            }
+        })
         return Service.START_STICKY
     }
 
@@ -127,10 +134,10 @@ class HService : Service() {
         super.onDestroy()
         Log.i("HService","Destroy")
         PreferenceManager.getDefaultSharedPreferences(this).edit().putInt("nid",nid).commit()
-        if(!realm.isClosed) realm.close()
+        if(realm != null || !realm!!.isClosed) realm!!.close()
         mqttclient?.isConnected?.let { if(it) mqttclient?.disconnect() }
 
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { //재시작 알람
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { //재시작 알람
             (getSystemService(Context.ALARM_SERVICE) as AlarmManager).setAndAllowWhileIdle(AlarmManager.RTC, Calendar.getInstance().timeInMillis + 5000,
                     PendingIntent.getService(this, 1, Intent(this, HService::class.java), 0))
         } else {
@@ -169,7 +176,7 @@ class HService : Service() {
                 if(!it) {
                     val ConnectOption = MqttConnectOptions()
                     ConnectOption.isAutomaticReconnect = true
-                    ConnectOption.connectionTimeout = 600
+                    ConnectOption.keepAliveInterval = 180
                     //ConnectOption.isCleanSession = false
                     mqttclient?.connect(ConnectOption)
                 }
@@ -179,8 +186,8 @@ class HService : Service() {
 
     //mqtt 관련 함수들
     private fun SubscribeProcess() {
-        val chatrooms = realm.where(ChatRoom::class.java).findAll()
-        val users = realm.where(Peoples::class.java).findAll()
+        val chatrooms = realm!!.where(ChatRoom::class.java).findAll()
+        val users = realm!!.where(Peoples::class.java).findAll()
         val ctsi = chatrooms.size
         val ussi = users.size
 
@@ -273,14 +280,14 @@ class HService : Service() {
         val kind = Atopic[1]
 
         if(kind == lastIdS) { //내용 동기화 시도 마지막 아이디 기준
-            val realkey = realm.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
+            val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
             if(realkey != null && Atopic.size == 3 ) {
                 if(Atopic[2] == myId) { //요청을 받음 내 최대 id를 알려줌
-                    var lastid = realm.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",myId).max("ChatId")?.toInt()
+                    var lastid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",myId).max("ChatId")?.toInt()
                     if(lastid == null) lastid = 0
                     mqttclient?.publish(key+'/'+lastIdS+'/'+myId,lastid.toString().toByteArray(),1,false)
                 } else if(Amsg.size != 0){ //응답을 받음
-                    var lastid = realm.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[2]).max("ChatId")?.toInt()
+                    var lastid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[2]).max("ChatId")?.toInt()
                     singleSubscribe(key+'/'+reqChatS+'/'+Amsg[0],1)
                     mqttclient?.unsubscribe(key+'/'+lastIdS+'/'+Amsg[0])
                     val start = if(lastid == null) 0 else 1
@@ -294,17 +301,17 @@ class HService : Service() {
             }
         }
         if(kind == reqChatS) {
-            val realkey = realm.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
+            val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
             if(realkey != null && Atopic.size == 3 && Amsg.size != 0) {
                 if (Atopic[2] == myId) {
-                    val cons = realm.where(ChatList::class.java).equalTo("RoomId", key).equalTo("UserId", myId).equalTo("ChatId", Amsg[0]).findFirst()
+                    val cons = realm!!.where(ChatList::class.java).equalTo("RoomId", key).equalTo("UserId", myId).equalTo("ChatId", Amsg[0]).findFirst()
                     if (cons != null) mqttclient?.publish(key + '/' + reqChatS + '/' + myId, (Amsg[0] + '/' + cons.Content + '/' + cons.Time).toByteArray(), 1, false)
                     else Log.e("chat", "Incorrect chatId")
                 } else {
-                    val thatid = realm.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[1]).equalTo("ChatId",Amsg[0].toInt()).findFirst()
+                    val thatid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[1]).equalTo("ChatId",Amsg[0].toInt()).findFirst()
                     if(thatid == null) {
-                        realm.executeTransactionAsync(Realm.Transaction {
-                            realm.insert(ChatList().set(key, Amsg[0].toInt(), Atopic[2], Amsg[1], Amsg[2].toLong()))
+                        realm!!.executeTransactionAsync(Realm.Transaction {
+                            realm!!.insert(ChatList().set(key, Amsg[0].toInt(), Atopic[2], Amsg[1], Amsg[2].toLong()))
                         }, object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
                                 Log.i("chat", "insert chat in : " + realkey.RoomName)
@@ -314,7 +321,7 @@ class HService : Service() {
                                     reqChatList.remove(key)
                                     mqttclient?.unsubscribe(key+'/'+reqChatS+'/'+Atopic[2])
                                 }
-                                if(Singleton.isChattingRoom(this@HService,key)) for(c in mChats) c.DetectChange(key)
+                                if(Singleton.isChattingRoom(application,key)) for(c in mChats) c.DetectChange(key)
                             }
                         }, object : Realm.Transaction.OnError {
                             override fun onError(error: Throwable?) {
@@ -330,21 +337,21 @@ class HService : Service() {
             }
         }
         if(kind == chatS) { //채팅 메세지 받음
-            val realkey = realm.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
+            val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
             if(realkey != null) { // 자신의 채팅방 여부
-                val thatid = realm.where(ChatList::class.java).equalTo("RoomId",key).equalTo("ChatId",Amsg[0].toInt()).equalTo("UserId",Amsg[1]).findFirst()
+                val thatid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("ChatId",Amsg[0].toInt()).equalTo("UserId",Amsg[1]).findFirst()
                 if(thatid == null) {
-                    realm.executeTransactionAsync(Realm.Transaction {
+                    realm!!.executeTransactionAsync(Realm.Transaction {
                         it.insert(ChatList().set(key, Amsg[0].toInt(), Amsg[1], Amsg[2], Amsg[3].toLong())) // 채팅 내용 저장
                         it.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()!!.Count++
                     }, object : Realm.Transaction.OnSuccess {
                         override fun onSuccess() {
                             Log.i("chat", "insert chat in : " + realkey.RoomName)
                             if(Amsg[0].toInt() > 0) {
-                                var username = realm.where(Peoples::class.java).equalTo("UserId", Amsg[1]).findFirst()?.UserName
+                                var username = realm!!.where(Peoples::class.java).equalTo("UserId", Amsg[1]).findFirst()?.UserName
                                 if (username == null) username = resources.getString(R.string.unknown)!!
                                 for (c in mChats) c.newChat(key,Amsg[1], username, Amsg[2], Amsg[3].toLong())
-                                if (!Singleton.isChattingRoom(this@HService, key)) { // 노티 발생
+                                if (!Singleton.isChattingRoom(application, key)) { // 노티 발생
                                     (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(nid,
                                             NotificationCompat.Builder(this@HService, "mqtt")
                                                     .setSmallIcon(R.mipmap.ic_launcher_round)
@@ -368,13 +375,13 @@ class HService : Service() {
                 Log.e("chat","Incorrect msg")
             }
         } else if(kind == inviteRS) {// 채팅방 초대
-            val realkey = realm.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
+            val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
             if(realkey != null && Atopic.size == 2 && Amsg[0] != myId) {//초대된 유저 확인
-                val ruser = realm.where(ChatMember::class.java).equalTo("RoomId",key).equalTo("UserId",Amsg[0]).findFirst()
+                val ruser = realm!!.where(ChatMember::class.java).equalTo("RoomId",key).equalTo("UserId",Amsg[0]).findFirst()
                 if(ruser == null) {
-                    val user = realm.where(Peoples::class.java).equalTo("UserId",Amsg[0]).findFirst()
+                    val user = realm!!.where(Peoples::class.java).equalTo("UserId",Amsg[0]).findFirst()
                     if(user == null) {
-                        realm.executeTransactionAsync(Realm.Transaction {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
                             it.insert(ChatMember().set(key, Amsg[0]))
                             it.insert(Peoples().set(Amsg[0],Amsg[1]))
                         }, object : Realm.Transaction.OnSuccess {
@@ -388,7 +395,7 @@ class HService : Service() {
                             }
                         })
                     } else {
-                        realm.executeTransactionAsync(Realm.Transaction {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
                             it.insert(ChatMember().set(key, Amsg[0]))
                         }, object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
@@ -407,11 +414,13 @@ class HService : Service() {
                 val pmodel = ArrayList<Peoples>()
                 for(u in users) {
                     val info = u.split('&')
-                    umodel.add(ChatMember().set(key,info[0]))
-                    if(realm.where(Peoples::class.java).equalTo("UserId",info[0]).findFirst() == null)
-                        pmodel.add(Peoples().set(info[0],info[1]))
+                    if(info.size == 2) {
+                        umodel.add(ChatMember().set(key, info[0]))
+                        if (realm!!.where(Peoples::class.java).equalTo("UserId", info[0]).findFirst() == null)
+                            pmodel.add(Peoples().set(info[0], info[1]))
+                    }
                 }
-                realm.executeTransactionAsync(Realm.Transaction {
+                realm!!.executeTransactionAsync(Realm.Transaction {
                     it.insert(ChatRoom().set(Amsg[0],Amsg[1]))
                     it.insert(umodel)
                     it.insert(pmodel)
@@ -421,7 +430,7 @@ class HService : Service() {
                         for(c in mChats) c.DetectChange(Amsg[0])
                         for(u in pmodel) SubscribePeople(u.UserId)
                         SubscribeRoom(Amsg[0])
-                        mqttclient?.publish(Amsg[0]+'/'+inviteRS,(myId+'/'+realm.where(MyInfo::class.java).findFirst()?.Name).toByteArray(),0,false,this,object : IMqttActionListener {
+                        mqttclient?.publish(Amsg[0]+'/'+inviteRS,(myId+'/'+realm!!.where(MyInfo::class.java).findFirst()?.Name).toByteArray(),0,false,this,object : IMqttActionListener {
                             override fun onSuccess(asyncActionToken: IMqttToken?) {
                                 Log.i("chat", "newin chat in : " + Amsg[1])
                                 mqttclient?.publish(Amsg[0]+'/'+chatS,("0/"+myId+'/'+myN+resources.getString(R.string.newin)+'/'+Calendar.getInstance().timeInMillis).toByteArray(),0,false)
@@ -441,12 +450,12 @@ class HService : Service() {
                 Log.e("chat","Incorrect msg")
             }
         } else if(kind == exitRS) {
-            val realkey = realm.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
+            val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
             if(realkey != null && Amsg.size == 3) {
                 if(Amsg[0] != myId) { //남이나감
-                    val user = realm.where(ChatMember::class.java).equalTo("RoomId", key).equalTo("UserId", Amsg[0]).findFirst()
+                    val user = realm!!.where(ChatMember::class.java).equalTo("RoomId", key).equalTo("UserId", Amsg[0]).findFirst()
                     if (user != null) {
-                        realm.executeTransactionAsync(Realm.Transaction {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
                             it.where(ChatMember::class.java).equalTo("RoomId", key).equalTo("UserId", Amsg[0]).findFirst()?.deleteFromRealm()
                             it.insert(ChatList().set(key, -1, Amsg[0], Amsg[1], Amsg[2].toLong()))
                         }, object : Realm.Transaction.OnSuccess {
@@ -460,7 +469,7 @@ class HService : Service() {
                         })
                     }
                 } else { //내가나감
-                    realm.executeTransactionAsync(Realm.Transaction {
+                    realm!!.executeTransactionAsync(Realm.Transaction {
                         it.where(ChatList::class.java).equalTo("RoomId", key).findAll()?.deleteAllFromRealm()
                         it.where(ChatMember::class.java).equalTo("RoomId", key).findAll()?.deleteAllFromRealm()
                         it.where(ChatRoom::class.java).equalTo("RoomId", key).findAll()?.deleteAllFromRealm()
@@ -480,16 +489,16 @@ class HService : Service() {
             }
         } else if(kind == isUserS) {
             if(Atopic.size == 2 && Amsg.size == 1 && key == myId) {
-                val realkey = realm.where(ChatRoom::class.java).equalTo("RoomId",Amsg[0]).findFirst()
+                val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",Amsg[0]).findFirst()
                 if(realkey == null)
                     mqttclient?.publish(Amsg[0]+'/'+isUserS+'/'+myId,"no".toByteArray(),1,false)
                 else
                     mqttclient?.publish(Amsg[0]+'/'+isUserS+'/'+myId,"yes".toByteArray(),1,false)
             } else if(Atopic.size == 3 && Amsg.size == 1 && Atopic[2] != myId) {
                 if(Amsg[0] == "no") {
-                    val user = realm.where(ChatMember::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[2]).findFirst()
+                    val user = realm!!.where(ChatMember::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[2]).findFirst()
                     if(user != null) {
-                        realm.executeTransactionAsync(Realm.Transaction {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
                             user.deleteFromRealm()
                         },object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
@@ -508,10 +517,10 @@ class HService : Service() {
             }
         } else if(kind == newFS) { //친구요청받음
             if(key == myId && Amsg.size == 1) {
-                val user = realm.where(Peoples::class.java).equalTo("UserId",Amsg[0]).findFirst()
+                val user = realm!!.where(Peoples::class.java).equalTo("UserId",Amsg[0]).findFirst()
                 if(user != null && !user.isFriend) {
                     if(user.doRequest) { //내가 요청했었음
-                        realm.executeTransactionAsync(Realm.Transaction {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
                             user.isFriend = true
                             user.doRequest = false
                             user.Requested = false
@@ -526,7 +535,7 @@ class HService : Service() {
                             }
                         })
                     } else { //요청 받음
-                        realm.executeTransactionAsync(Realm.Transaction {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
                             user.Requested = true
                         }, object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
@@ -541,7 +550,7 @@ class HService : Service() {
                 } else if(user == null) {
                     val user = Peoples().set(Amsg[0],Amsg[1])
                     user.Requested = true
-                    realm.executeTransactionAsync(Realm.Transaction {
+                    realm!!.executeTransactionAsync(Realm.Transaction {
                         it.insert(user)
                     }, object : Realm.Transaction.OnSuccess {
                         override fun onSuccess() {
@@ -558,9 +567,9 @@ class HService : Service() {
                 Log.e("friends","Incorrect msg")
             }
         } else if(kind == changeNS) {
-            val realkey = realm.where(Peoples::class.java).equalTo("UserId",key).findFirst()
+            val realkey = realm!!.where(Peoples::class.java).equalTo("UserId",key).findFirst()
             if(realkey != null && Amsg.size == 1) {
-                realm.executeTransactionAsync(Realm.Transaction {
+                realm!!.executeTransactionAsync(Realm.Transaction {
                     realkey.UserName = Amsg[0]
                 }, object : Realm.Transaction.OnSuccess {
                     override fun onSuccess() {
@@ -578,20 +587,22 @@ class HService : Service() {
         }
     }
 
+    //bind된 곳에서 사용하는 public 함수들
     fun makeRoom(users : Array<String>, name : String?) {
         var n = name
         val newrId = UUID.randomUUID().toString()
         if(n == null) {
-            if(users.size == 1) n = realm.where(Peoples::class.java).equalTo("UserId",users[0]).findFirst()?.UserName
-            else n = realm.where(Peoples::class.java).equalTo("UserId",users[0]).findFirst()?.UserName + " 외 " + (users.size-1) + "명"
+            if(users.size == 1) n = realm!!.where(Peoples::class.java).equalTo("UserId",users[0]).findFirst()?.UserName
+            else n = realm!!.where(Peoples::class.java).equalTo("UserId",users[0]).findFirst()?.UserName + " 외 " + (users.size-1) + "명"
         }
-        realm.executeTransaction {
+        realm!!.executeTransaction {
             it.insert(ChatRoom().set(newrId,n!!))
+            it.insert(ChatMember().set(newrId,myId))
             for(u in users) it.insert(ChatMember().set(newrId,u))
         }
-        SubscribeRoom(newrId)
         for(u in users) inviteUser(u,newrId)
         for (c in mChats) c.DetectChange(newrId)
+        SubscribeRoom(newrId)
     }
 
     fun CheckChats(roomid : String, userid : String) {
@@ -608,7 +619,7 @@ class HService : Service() {
     }
 
     fun pubChat(roomid : String, content : String) { // 채팅 보내기
-        var max = realm.where(ChatList::class.java).equalTo("RoomId",roomid).equalTo("UserId",myId).max("ChatId")?.toInt()
+        var max = realm!!.where(ChatList::class.java).equalTo("RoomId",roomid).equalTo("UserId",myId).max("ChatId")?.toInt()
         if(max == null) max = 1
         else max++
         val nowtime = Calendar.getInstance().timeInMillis
@@ -616,17 +627,26 @@ class HService : Service() {
     }
 
     fun inviteUser(userid : String, roomid : String) { // 새 유저 초대
-        val roomN = realm.where(ChatRoom::class.java).equalTo("RoomId",roomid).findFirst()?.RoomName
-        val roomU = realm.where(ChatMember::class.java).equalTo("RoomId",roomid).findAll()
-        var users = ""
+        val roomN = realm!!.where(ChatRoom::class.java).equalTo("RoomId",roomid).findFirst()?.RoomName
+        val roomU = realm!!.where(ChatMember::class.java).equalTo("RoomId",roomid).findAll()
+        var users = myId+'&'+myN+','
         for(u in roomU) {
-            val uN = realm.where(Peoples::class.java).equalTo("UserId",u.UserID).findFirst()?.UserName
-            users += u.UserID+'&'+uN+','
+            val uN = realm!!.where(Peoples::class.java).equalTo("UserId",u.UserId).findFirst()?.UserName
+            users += u.UserId+'&'+uN+','
         }
-        mqttclient?.publish(userid+'/'+inviteRS,(roomid+'/'+roomN+'/'+users).toByteArray(),1,true)
-        if(realm.where(Peoples::class.java).equalTo("UserId",userid).findFirst() == null) {
-            realm.executeTransaction { it.insert(Peoples().set(userid,resources.getString(R.string.unknown))) }
-        }
+        mqttclient?.publish(userid+'/'+inviteRS,(roomid+'/'+roomN+'/'+users).toByteArray(),1,false, this, object : IMqttActionListener{
+            override fun onSuccess(asyncActionToken: IMqttToken?) {
+                handler.post {
+                    if(realm!!.where(Peoples::class.java).equalTo("UserId",userid).findFirst() == null) {
+                        realm!!.executeTransaction { it.insert(Peoples().set(userid,resources.getString(R.string.unknown))) }
+                    }
+                }
+            }
+
+            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            }
+        })
     }
 
     fun exitRoom(roomid : String) {
@@ -646,11 +666,11 @@ class HService : Service() {
     }
 
     fun reqFriend(userid : String) {
-        val user = realm.where(Peoples::class.java).equalTo("UserId",userid).findFirst()
+        val user = realm!!.where(Peoples::class.java).equalTo("UserId",userid).findFirst()
         if(user != null && !user.isFriend && !user.isBan) {
             mqttclient?.publish(userid + '/' + newFS, (myId + '/' + myN).toByteArray(), 1, false, this, object : IMqttActionListener {
                 override fun onSuccess(asyncActionToken: IMqttToken?) {
-                    realm.executeTransactionAsync(Realm.Transaction {
+                    realm!!.executeTransactionAsync(Realm.Transaction {
                         user?.doRequest = true
                     }, object : Realm.Transaction.OnSuccess {
                         override fun onSuccess() {
@@ -673,8 +693,8 @@ class HService : Service() {
     fun changeName(name : String) {
         mqttclient?.publish(myId+'/'+changeNS,name.toByteArray(),1,false,this,object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
-                realm.executeTransactionAsync(Realm.Transaction {
-                    it.insert(realm.where(MyInfo::class.java).findFirst()?.set(name))
+                realm!!.executeTransactionAsync(Realm.Transaction {
+                    it.insert(realm!!.where(MyInfo::class.java).findFirst()?.set(name))
                 }, object : Realm.Transaction.OnSuccess {
                     override fun onSuccess() {
                         Log.i("MyInfo", "change my name")

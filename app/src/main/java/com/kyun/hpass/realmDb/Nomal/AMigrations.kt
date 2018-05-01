@@ -1,4 +1,4 @@
-package com.kyun.hpass.realmDb
+package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.DynamicRealm
 import io.realm.RealmMigration

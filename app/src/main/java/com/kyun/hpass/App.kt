@@ -2,7 +2,9 @@ package com.kyun.hpass
 
 import android.app.Activity
 import android.app.Application
+import android.content.Context
 import android.os.Bundle
+import com.kakao.auth.*
 import com.kyun.hpass.util.objects.Singleton
 import io.realm.Realm
 
@@ -19,7 +21,8 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         Realm.init(this)
-        Realm.setDefaultConfiguration(Singleton.mConfig)
+        KakaoSDK.init(KakaoSDKAdapter())
+        Singleton.setKey()
 
         registerActivityLifecycleCallbacks(LifecycleCallbacks())
     }
@@ -83,6 +86,42 @@ class App : Application() {
         }
 
         override fun onActivityCreated(p0: Activity?, p1: Bundle?) {
+        }
+
+    }
+
+    inner class KakaoSDKAdapter : KakaoAdapter() {
+        /**
+         * Session Config에 대해서는 default값들이 존재한다.
+         * 필요한 상황에서만 override해서 사용하면 됨.
+         * @return Session의 설정값.
+         */
+        override fun getSessionConfig(): ISessionConfig {
+            return object : ISessionConfig {
+                override fun getAuthTypes(): Array<AuthType> {
+                    return arrayOf(AuthType.KAKAO_LOGIN_ALL)
+                }
+
+                override fun isUsingWebviewTimer(): Boolean {
+                    return false
+                }
+
+                override fun isSecureMode(): Boolean {
+                    return false
+                }
+
+                override fun getApprovalType(): ApprovalType {
+                    return ApprovalType.INDIVIDUAL
+                }
+
+                override fun isSaveFormData(): Boolean {
+                    return true
+                }
+            }
+        }
+
+        override fun getApplicationConfig(): IApplicationConfig {
+            return IApplicationConfig { applicationContext }
         }
 
     }

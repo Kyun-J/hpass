@@ -1,4 +1,4 @@
-package com.kyun.hpass.realmDb
+package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.RealmModel
 import io.realm.annotations.RealmClass
@@ -10,11 +10,11 @@ import io.realm.annotations.RealmClass
 open class ChatMember : RealmModel {
 
     var RoomId : String = ""
-    var UserID : String = ""
+    var UserId : String = ""
 
     fun set(roomid : String, userid : String) : ChatMember {
         RoomId = roomid
-        UserID = userid
+        UserId = userid
         return this
     }
 

@@ -15,7 +15,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import com.kyun.hpass.Service.HService
 import com.kyun.hpass.util.objects.Singleton
-import com.kyun.hpass.realmDb.Peoples
+import com.kyun.hpass.realmDb.Nomal.Peoples
 import io.realm.Realm
 import kotlinx.android.synthetic.main.fragment_test.*
 

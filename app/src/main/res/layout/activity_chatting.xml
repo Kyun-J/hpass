@@ -37,7 +37,9 @@
             android:hint="내용을 입력하세요!"
             android:scrollHorizontally="true"
             android:layout_marginLeft="20dp"
+            android:layout_marginBottom="10dp"
             android:layout_weight="1"
+            android:maxLines="3"
             android:background="@drawable/ychatcontinue"/>
         <Button
             android:layout_width="wrap_content"
