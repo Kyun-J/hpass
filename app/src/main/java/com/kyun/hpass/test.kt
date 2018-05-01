@@ -52,8 +52,8 @@ class test : Fragment() {
         imm = mContext?.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
 
-    override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater!!.inflate(R.layout.fragment_test,null)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        return inflater.inflate(R.layout.fragment_test,null)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {

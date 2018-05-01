@@ -4,10 +4,12 @@ import android.content.Intent
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Base64
+import android.util.Log
 import android.view.inputmethod.EditorInfo
 import com.google.gson.JsonElement
 import com.google.gson.JsonObject
 import com.kakao.auth.ApiResponseCallback
+import com.kakao.auth.AuthService
 import com.kakao.auth.ISessionCallback
 import com.kakao.auth.Session
 import com.kakao.auth.network.response.AccessTokenInfoResponse
@@ -19,8 +21,8 @@ import com.kakao.util.exception.KakaoException
 import com.kyun.hpass.R
 import com.kyun.hpass.realmDb.Basic.User
 import com.kyun.hpass.util.objects.Singleton
-import io.realm.Realm
 import kotlinx.android.synthetic.main.activity_login.*
+import io.realm.Realm
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -40,13 +42,13 @@ class LoginActivity : AppCompatActivity(), ISessionCallback {
     }
 
     //카카오 fail
-    override fun onSessionOpenFailed(exception: KakaoException?) {
-        TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+    override fun onSessionOpenFailed(exception: KakaoException) {
+        Log.e("kakaoE",exception.toString())
     }
 
     //카카오 성공
     override fun onSessionOpened() {
-        Session.getCurrentSession().accessTokenManager.requestAccessTokenInfo(object : ApiResponseCallback<AccessTokenInfoResponse>(){
+        AuthService.getInstance().requestAccessTokenInfo(object : ApiResponseCallback<AccessTokenInfoResponse>(){
             override fun onNotSignedUp() {}
 
             override fun onSuccess(result: AccessTokenInfoResponse) {
@@ -77,8 +79,8 @@ class LoginActivity : AppCompatActivity(), ISessionCallback {
                 })
             }
 
-            override fun onSessionClosed(errorResult: ErrorResult?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            override fun onSessionClosed(errorResult: ErrorResult) {
+                Log.e("kakaoE",errorResult.toString())
             }
 
         })
