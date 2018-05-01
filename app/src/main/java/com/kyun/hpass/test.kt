@@ -28,7 +28,7 @@ class test : Fragment() {
 
     var mContext : Context? = null
 
-    val realm = Realm.getDefaultInstance()
+    val realm = Singleton.getNomalDB()
 
     var Hs : HService? = null
     var isBind : Boolean = false

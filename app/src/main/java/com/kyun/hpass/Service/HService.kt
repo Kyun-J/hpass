@@ -102,12 +102,6 @@ class HService : Service() {
     override fun onCreate() { //초기값
         super.onCreate()
         Log.i("HService","Create")
-        if(PackageManager.PERMISSION_GRANTED == ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE))
-            myId = (getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager).line1Number
-        else
-            myId = IgnoreValues.testUser
-        if(myId == "") myId = IgnoreValues.testUser
-        Singleton.MyId = myId
         nid = PreferenceManager.getDefaultSharedPreferences(this).getInt("nid", 0)
     }
 
@@ -117,8 +111,10 @@ class HService : Service() {
             override fun Check() {
                 mqttSetting()
                 if(realm == null || realm!!.isClosed) {
-                    realm = Realm.getDefaultInstance()
+                    realm = Singleton.getNomalDB()
                     myN = realm!!.where(MyInfo::class.java).findFirst()!!.Name
+                    myId = realm!!.where(MyInfo::class.java)!!.findFirst()!!.Email
+                    Singleton.MyId = myId
                 }
             }
         })
@@ -694,7 +690,8 @@ class HService : Service() {
         mqttclient?.publish(myId+'/'+changeNS,name.toByteArray(),1,false,this,object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
                 realm!!.executeTransactionAsync(Realm.Transaction {
-                    it.insert(realm!!.where(MyInfo::class.java).findFirst()?.set(name))
+                    val my = it.where(MyInfo::class.java).findFirst()
+                    my?.Name = name
                 }, object : Realm.Transaction.OnSuccess {
                     override fun onSuccess() {
                         Log.i("MyInfo", "change my name")

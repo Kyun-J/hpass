@@ -8,10 +8,11 @@ import io.realm.annotations.RealmClass
 open class MyInfo : RealmModel {
 
     var Name : String = ""
+    var Email : String = ""
 
-    fun set(name : String) : MyInfo {
+    fun set(name : String, email : String) : MyInfo {
         Name = name
-
+        Email = email
         return this
     }
 

@@ -17,6 +17,7 @@ import com.kyun.hpass.Service.HService
 import com.kyun.hpass.realmDb.Nomal.ChatList
 import com.kyun.hpass.realmDb.Nomal.ChatMember
 import com.kyun.hpass.realmDb.Nomal.ChatRoom
+import com.kyun.hpass.util.objects.Singleton
 import io.realm.Realm
 import io.realm.Sort
 import kotlinx.android.synthetic.main.fragment_chatting_list.*
@@ -29,7 +30,7 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
 
     var mContext : Context? = null
     var adapter : ChattingListRecyclerAdapter? = null
-    val realm : Realm = Realm.getDefaultInstance()
+    val realm : Realm = Singleton.getNomalDB()
 
     var Hs : HService? = null
 

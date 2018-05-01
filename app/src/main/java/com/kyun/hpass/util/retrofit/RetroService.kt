@@ -24,6 +24,6 @@ interface RetroService {
     fun newUser(@Field("email") email : String,
                 @Field("name") name : String,
                 @Field("type") type : Int,
-                @Field("kakaoId") kakaoId : String) : Call<JsonElement>
+                @Field("kakaoId") kakaoId : Long) : Call<JsonElement>
 
 }

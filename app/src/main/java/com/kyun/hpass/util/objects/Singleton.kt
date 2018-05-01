@@ -1,8 +1,6 @@
 package com.kyun.hpass.util.objects
 
 import android.app.Application
-import android.content.Context
-import android.preference.PreferenceManager
 import com.google.gson.JsonElement
 import com.kyun.hpass.Chatting.ChattingActivity
 import com.kyun.hpass.App
@@ -21,6 +19,8 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.*
 import android.util.Base64
+import android.util.Log
+import com.google.gson.GsonBuilder
 
 /**
  * Created by kyun on 2018. 3. 13..
@@ -33,15 +33,14 @@ object Singleton {
     val facebook = 3
 
     var realmKey : ByteArray? = null
-    private var CheckList = ArrayList<isCheck>()
+    var CheckList = ArrayList<isCheck>()
     var MyId : String = ""
 
-    val mConfig = RealmConfiguration.Builder().modules(NomalDB()).schemaVersion(0).migration(AMigrations())
-    val uConfig = RealmConfiguration.Builder().modules(BasicDB()).schemaVersion(0).migration(UMigrations()).build()
+    val mConfig = RealmConfiguration.Builder().name("Nomal.realm").modules(NomalDB()).schemaVersion(0).migration(AMigrations())
+    val uConfig = RealmConfiguration.Builder().name("Basic.realm").modules(BasicDB()).schemaVersion(0).migration(UMigrations()).build()
 
-    fun getRetroService() : RetroService {
-        return Retrofit.Builder().baseUrl(IgnoreValues.Baseurl).addConverterFactory(GsonConverterFactory.create()).build().create(RetroService::class.java)
-    }
+    private val retrofit = Retrofit.Builder().baseUrl(IgnoreValues.BaseUrl).addConverterFactory(GsonConverterFactory.create(GsonBuilder().setLenient().create())).build()
+    val RetroService = retrofit.create(RetroService::class.java)
 
     fun isChattingRoom(app : Application, id : String) : Boolean {
         return (((app as App).TopActivity is ChattingActivity) &&
@@ -82,15 +81,14 @@ object Singleton {
         if(user != null) {
             if (realmKey == null) {
                 val token = trealm.where(User::class.java).findFirst()!!.k
-                val retro = getRetroService()
-                retro.simpleLogin(token).enqueue(object : Callback<JsonElement> {
+                RetroService.simpleLogin(token).enqueue(object : Callback<JsonElement> {
                     override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
                         if (response.isSuccessful) {
                             val json = response.body().asJsonObject
                             realmKey = Base64.decode(json.get("key").asString, Base64.DEFAULT)
-                            Realm.setDefaultConfiguration(mConfig.encryptionKey(realmKey).build())
                             trealm.executeTransaction { it.where(User::class.java).findFirst()?.k = json.get("token").asString }
                             trealm.close()
+                            Log.i("mmmmmm", realmKey!!.size.toString())
                             for (c in CheckList) c.Check()
                             CheckList = ArrayList()
                         }
@@ -106,6 +104,10 @@ object Singleton {
                 trealm.close()
             }
         } else trealm.close()
+    }
+
+    fun getNomalDB() : Realm {
+        return Realm.getInstance(mConfig.encryptionKey(realmKey).build())
     }
 
     fun addKeyCheck(check: isCheck) {

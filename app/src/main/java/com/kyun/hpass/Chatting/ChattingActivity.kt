@@ -28,7 +28,7 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
 
     var RoomId : String = ""
 
-    private var realm : Realm = Realm.getDefaultInstance()
+    private var realm : Realm = Singleton.getNomalDB()
     private var adapter : ChattingRecyclerAdapter? = null
 
     private var Hs : HService? = null //서비스 객체
