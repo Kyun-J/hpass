@@ -7,10 +7,13 @@
     <android.support.v7.widget.Toolbar
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:elevation="4dp"
-        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
         android:id="@+id/main_toolbar"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
+        android:clipToPadding="false"
+        app:contentInsetStart="0dp"
+        app:contentInsetEnd="0dp"
+        app:contentInsetLeft="0dp"
+        app:contentInsetRight="0dp"
+        android:background="@color/colorGray" />
 
     <android.support.v4.view.ViewPager
         android:id="@+id/main_pager"
@@ -18,6 +21,11 @@
         android:layout_height="0dp"
         app:layout_constraintBottom_toTopOf="@+id/main_tablayout"
         app:layout_constraintTop_toBottomOf="@id/main_toolbar" />
+
+    <include
+        layout="@layout/include_main_fab"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
     <android.support.design.widget.TabLayout
         android:layout_width="match_parent"

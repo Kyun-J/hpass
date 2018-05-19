@@ -1,4 +1,4 @@
-package com.kyun.hpass
+package com.kyun.hpass.Setting
 
 import android.annotation.SuppressLint
 import android.content.ComponentName
@@ -13,18 +13,18 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import com.kyun.hpass.R
 import com.kyun.hpass.Service.HService
 import com.kyun.hpass.util.objects.Singleton
 import com.kyun.hpass.realmDb.Nomal.Peoples
-import io.realm.Realm
-import kotlinx.android.synthetic.main.fragment_test.*
+import kotlinx.android.synthetic.main.fragment_setting.*
 
 
 /**
  * Created by kyun on 2018. 3. 13..
  */
 @SuppressLint("ValidFragment")
-class test : Fragment() {
+class SettingFragment : Fragment() {
 
     var mContext : Context? = null
 
@@ -53,7 +53,7 @@ class test : Fragment() {
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.fragment_test,null)
+        return inflater.inflate(R.layout.fragment_setting,null)
     }
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
@@ -61,19 +61,30 @@ class test : Fragment() {
         test_userid.text = Singleton.MyId
         test_adduser.setOnEditorActionListener { textView, i, keyEvent ->
             if(i == EditorInfo.IME_ACTION_DONE) {
-                val newU = test_adduser.text.toString()
-                realm.executeTransaction { it.insert(Peoples().set(newU,resources.getString(R.string.unknown))) }
-                Hs?.makeRoom(arrayOf(newU),null)
-                imm?.hideSoftInputFromWindow(test_adduser.windowToken,0)
+                if(isBind && Hs!!.isMqttAlive()) {
+                    val newU = textView.text.toString()
+                    Hs?.makeRoom(arrayOf(newU),null)
+                    realm.executeTransaction { it.insert(Peoples().set(newU, resources.getString(R.string.unknown))) }
+                } else Singleton.noMqttErrToast(mContext!!)
+                imm?.hideSoftInputFromWindow(test_adduser.windowToken, 0)
                 true
             } else
                 false
+        }
+        test_adduser_btn.setOnClickListener {
+            if(isBind && Hs!!.isMqttAlive()) {
+                val newU = test_adduser.text.toString()
+                Hs?.makeRoom(arrayOf(newU),null)
+                realm.executeTransaction { it.insert(Peoples().set(newU, resources.getString(R.string.unknown))) }
+            } else Singleton.noMqttErrToast(mContext!!)
+            imm?.hideSoftInputFromWindow(test_adduser.windowToken, 0)
         }
     }
 
     override fun onResume() {
         super.onResume()
-        mContext?.bindService(Intent(mContext,HService::class.java),conn,0)
+        if(!isBind)
+            mContext?.bindService(Intent(mContext,HService::class.java),conn,0)
     }
 
     override fun onDestroy() {

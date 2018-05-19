@@ -10,16 +10,16 @@
         android:id="@+id/login_new_user_info"
         android:visibility="gone">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/login_email" />
         <EditText
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:id="@+id/login_name"
-            android:imeOptions="actionDone"
-            app:layout_constraintTop_toBottomOf="@id/login_email"/>
+            android:imeOptions="actionDone" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/login_phone"
+            app:layout_constraintTop_toBottomOf="@+id/login_name"/>
         <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -35,6 +35,16 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/login_buttons">
+        <com.google.android.gms.common.SignInButton
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/login_google"
+            app:buttonSize="wide"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintVertical_bias="0.6"/>
         <com.kakao.usermgmt.LoginButton
             android:layout_height="wrap_content"
             android:layout_width="wrap_content"

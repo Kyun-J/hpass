@@ -1,6 +1,7 @@
 package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.RealmModel
+import io.realm.annotations.PrimaryKey
 import io.realm.annotations.RealmClass
 
 /**
@@ -9,14 +10,11 @@ import io.realm.annotations.RealmClass
 @RealmClass
 open class ChatRoom : RealmModel{
 
+    @PrimaryKey
     var RoomId : String = ""
-        internal set
     var RoomName : String = ""
-        internal set
     var isAlarm : Boolean = true
-        internal set
     var Count : Int = 0
-        internal set
 
     fun set(roomid : String, roomname : String) : ChatRoom {
         RoomId = roomid

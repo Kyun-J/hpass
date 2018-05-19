@@ -4,6 +4,7 @@ import android.content.Intent
 import android.view.View
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.BaseViewHolder
+import com.kyun.hpass.Chatting.Activity.ChattingActivity
 import com.kyun.hpass.R
 import com.kyun.hpass.util.objects.Singleton
 
@@ -42,6 +43,6 @@ class ChattingListRecyclerAdapter : BaseQuickAdapter<ChattingListRecyclerItem,Ba
     }
 
     override fun onItemClick(adapter: BaseQuickAdapter<*, *>?, v: View, position: Int) {
-        v.context.startActivity(Intent(v.context,ChattingActivity::class.java).putExtra("id",this.data[position].id).putExtra("count",this.data[position].stack))
+        v.context.startActivity(Intent(v.context, ChattingActivity::class.java).putExtra("id",this.data[position].id).putExtra("count",this.data[position].stack))
     }
 }

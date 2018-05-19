@@ -1,6 +1,7 @@
 package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.RealmModel
+import io.realm.annotations.PrimaryKey
 import io.realm.annotations.RealmClass
 
 /**
@@ -9,22 +10,35 @@ import io.realm.annotations.RealmClass
 @RealmClass
 open class Peoples : RealmModel {
 
+    @PrimaryKey
     var UserId : String = ""
-        internal set
     var UserName : String = ""
-        internal set
     var isFriend : Boolean = false
-        internal set
+    var PhoneNumber : String = ""
     var doRequest : Boolean = false
-        internal set
     var Requested : Boolean = false
-        internal set
     var isBan : Boolean = false
-        internal set
 
     fun set(id : String, name : String) : Peoples {
         UserName = name
         UserId = id
+
+        return this
+    }
+
+    fun set(id : String, name : String, isfriend : Boolean) : Peoples {
+        UserName = name
+        UserId = id
+        isFriend = isfriend
+
+        return this
+    }
+
+    fun set(id : String, name : String, phone : String, isfriend : Boolean) : Peoples {
+        UserName = name
+        UserId = id
+        isFriend = isfriend
+        PhoneNumber = phone
 
         return this
     }

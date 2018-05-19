@@ -1,4 +1,4 @@
-package com.kyun.hpass.Chatting
+package com.kyun.hpass.Chatting.Activity
 
 import com.chad.library.adapter.base.entity.MultiItemEntity
 

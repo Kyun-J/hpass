@@ -1,4 +1,4 @@
-package com.kyun.hpass.Chatting
+package com.kyun.hpass.Chatting.Activity
 
 import android.widget.TextView
 import com.chad.library.adapter.base.BaseMultiItemQuickAdapter

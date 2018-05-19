@@ -1,6 +1,7 @@
 package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.RealmModel
+import io.realm.annotations.PrimaryKey
 import io.realm.annotations.RealmClass
 
 
@@ -8,11 +9,12 @@ import io.realm.annotations.RealmClass
 open class MyInfo : RealmModel {
 
     var Name : String = ""
-    var Email : String = ""
+    @PrimaryKey
+    var Id : String = ""
 
-    fun set(name : String, email : String) : MyInfo {
+    fun set(name : String, id : String) : MyInfo {
         Name = name
-        Email = email
+        Id = id
         return this
     }
 

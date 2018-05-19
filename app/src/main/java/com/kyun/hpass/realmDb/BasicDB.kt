@@ -1,7 +1,7 @@
 package com.kyun.hpass.realmDb
 
-import com.kyun.hpass.realmDb.Basic.User
+import com.kyun.hpass.realmDb.Basic.Token
 import io.realm.annotations.RealmModule
 
-@RealmModule(classes = arrayOf(User::class))
+@RealmModule(classes = arrayOf(Token::class))
 class BasicDB

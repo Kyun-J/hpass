@@ -1,50 +1,140 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.v4.widget.DrawerLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:fitsSystemWindows="true"
+    android:id="@+id/chat_drawer"
+    tools:openDrawer="end">
 
-    <android.support.v7.widget.Toolbar
+    <android.support.design.widget.CoordinatorLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:elevation="4dp"
-        android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
-        android:id="@+id/chat_toolbar"
-        app:popupTheme="@style/ThemeOverlay.AppCompat.Light"/>
+        android:layout_height="match_parent">
 
-    <android.support.v7.widget.RecyclerView
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:id="@+id/chat_text_list"
-        android:scrollbars="vertical"
-        android:scrollbarStyle="outsideOverlay"
-        android:background="#818b9c"
-        app:layout_constraintBottom_toTopOf="@+id/chat_text_edit"
-        app:layout_constraintTop_toBottomOf="@+id/chat_toolbar"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent" />
+        <android.support.design.widget.AppBarLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:theme="@style/AppTheme.AppBarOverlay">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:id="@+id/chat_text_edit"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent">
-        <EditText
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:id="@+id/chat_edit"
-            android:hint="내용을 입력하세요!"
-            android:scrollHorizontally="true"
-            android:layout_marginLeft="20dp"
-            android:layout_marginBottom="10dp"
-            android:layout_weight="1"
-            android:maxLines="3"
-            android:background="@drawable/ychatcontinue"/>
-        <Button
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:id="@+id/chat_confirm"
-            android:text="전송"/>
-    </LinearLayout>
-</android.support.constraint.ConstraintLayout>
+            <android.support.v7.widget.Toolbar
+                android:layout_width="match_parent"
+                android:layout_height="?attr/actionBarSize"
+                android:theme="@style/ThemeOverlay.AppCompat.ActionBar"
+                android:id="@+id/chat_toolbar"
+                app:popupTheme="@style/ThemeOverlay.AppCompat.Light">
+                <ImageButton
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right"
+                    android:id="@+id/chat_toolbar_info"
+                    android:background="@android:drawable/ic_menu_info_details"/>
+            </android.support.v7.widget.Toolbar>
+
+        </android.support.design.widget.AppBarLayout>
+
+        <android.support.constraint.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+            <android.support.v7.widget.RecyclerView
+                android:layout_width="0dp"
+                android:layout_height="0dp"
+                android:id="@+id/chat_text_list"
+                android:scrollbars="vertical"
+                android:scrollbarStyle="outsideOverlay"
+                android:background="#818b9c"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toTopOf="@+id/chat_text_edit"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintLeft_toLeftOf="parent" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/chat_text_edit"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent">
+                <EditText
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/chat_edit"
+                    android:hint="내용을 입력하세요!"
+                    android:scrollHorizontally="true"
+                    android:layout_marginLeft="20dp"
+                    android:layout_marginBottom="10dp"
+                    android:layout_weight="1"
+                    android:maxLines="3"
+                    android:background="@drawable/ychatcontinue"/>
+                <Button
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:id="@+id/chat_confirm"
+                    android:text="전송"/>
+            </LinearLayout>
+
+        </android.support.constraint.ConstraintLayout>
+
+    </android.support.design.widget.CoordinatorLayout>
+
+    <android.support.design.widget.NavigationView
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="end">
+        <android.support.constraint.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:id="@+id/chat_navi_room_name_txt"
+                android:text="채팅방 이름"
+                app:layout_constraintTop_toTopOf="parent"/>
+            <EditText
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:id="@+id/chat_navi_room_name_edit"
+                android:imeOptions="actionDone"
+                app:layout_constraintTop_toBottomOf="@+id/chat_navi_room_name_txt"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintRight_toLeftOf="@+id/chat_navi_room_name_btn"/>
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:id="@+id/chat_navi_room_name_btn"
+                android:text="변경"
+                app:layout_constraintRight_toRightOf="parent"
+                app:layout_constraintBottom_toBottomOf="@+id/chat_navi_room_name_edit"
+                app:layout_constraintTop_toTopOf="@+id/chat_navi_room_name_edit"/>
+            <Switch
+                android:id="@+id/chat_navi_room_alarm"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="true"
+                android:text="알림"
+                app:layout_constraintTop_toBottomOf="@+id/chat_navi_room_name_edit" />
+            <Button
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="나가기"
+                android:id="@+id/chat_navi_exit_room"
+                app:layout_constraintTop_toBottomOf="@id/chat_navi_room_alarm"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="대화상대"
+                android:id="@+id/chat_navi_people_list_txt"
+                app:layout_constraintTop_toBottomOf="@+id/chat_navi_exit_room"/>
+            <android.support.v7.widget.RecyclerView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:id="@+id/chat_navi_people_list"
+                app:layout_constraintTop_toBottomOf="@+id/chat_navi_people_list_txt"
+                app:layout_constraintBottom_toBottomOf="parent" />
+        </android.support.constraint.ConstraintLayout>
+    </android.support.design.widget.NavigationView>
+
+</android.support.v4.widget.DrawerLayout>

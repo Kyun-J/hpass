@@ -116,16 +116,18 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
                 } else if(d.id == r?.RoomId) { //채팅방 업뎃
                     val chatl = realm.where(ChatList::class.java).equalTo("RoomId",r.RoomId)
                     val max = chatl.max("Time")?.toLong()
-                    val chat = realm.where(ChatList::class.java).equalTo("RoomId",r.RoomId).equalTo("Time",max).findFirst()
-                    val item = ChattingListRecyclerItem()
-                    item.id = r.RoomId
-                    item.title = r.RoomName
-                    item.recent = if(chat == null) "" else chat.Content
-                    item.time = if(chat == null) 0 else chat.Time
-                    item.users = realm.where(ChatMember::class.java).equalTo("RoomId",r.RoomId).findAll().size - 1
-                    item.stack = r.Count
-                    item.alarm = r.isAlarm
-                    adapter!!.setData(i,item)
+                    if(max != null) {
+                        val chat = realm.where(ChatList::class.java).equalTo("RoomId", r.RoomId).equalTo("Time", max).findFirst()
+                        val item = ChattingListRecyclerItem()
+                        item.id = r.RoomId
+                        item.title = r.RoomName
+                        item.recent = if (chat == null) "" else chat.Content
+                        item.time = if (chat == null) 0 else chat.Time
+                        item.users = realm.where(ChatMember::class.java).equalTo("RoomId", r.RoomId).findAll().size - 1
+                        item.stack = r.Count
+                        item.alarm = r.isAlarm
+                        adapter!!.setData(i, item)
+                    }
                     break
                 } else if(i == data.size - 1 && r != null) { //채팅방 추가됨
                     val chat = realm.where(ChatList::class.java).equalTo("RoomId",r.RoomId).sort("Time",Sort.DESCENDING).findFirst()
@@ -148,7 +150,7 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
     }
 
     fun sort(itmes : MutableList<ChattingListRecyclerItem>) {
-        if(itmes.size > 0)
+        if(itmes.size > 1)
             Qsort(itmes ,0,itmes.size-1)
     }
 
@@ -174,7 +176,8 @@ class ChattingListFragment : Fragment(),HService.ChatCallBack {
 
     override fun onResume() {
         super.onResume()
-        mContext?.bindService(Intent(mContext,HService::class.java),conn,0)
+        if(!isBind)
+            mContext?.bindService(Intent(mContext,HService::class.java),conn,0)
     }
 
     override fun onDestroy() {

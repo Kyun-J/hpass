@@ -1,8 +1,11 @@
 <resources>
     <string name="app_name">hpass</string>
 
+    <!--kakao-->
     <string name="kakao_app_key">7821acb0660df202ea564ae7d2f9b4f1</string>
     <string name="kakao_secret_key">oDdNpBE7aTKtBk2XUGtLLNAm5xMUGqNe</string>
+    <!--google-->
+    <string name="server_client_id">136325589180-3chdm4sutj5q98k1ebhntriosi13ibku.apps.googleusercontent.com</string>
 
     <!--else-->
     <string name="unknown">알수없음</string>
@@ -10,5 +13,7 @@
     <string name="newin"> 님이 참가하였습니다.</string>
     <string name="chatout"> 님이 나갔습니다.</string>
     <string name="here">여기까지 읽으셨습니다.</string>
+    <string name="navi_open">navi_open</string>
+    <string name="navi_close">navi_close</string>
 
 </resources>

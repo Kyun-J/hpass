@@ -3,12 +3,8 @@ package com.kyun.hpass.realmDb.Basic
 import io.realm.RealmModel
 import io.realm.annotations.RealmClass
 
-
 @RealmClass
-open class User : RealmModel {
+open class Token : RealmModel {
 
-    var k : String = ""
-
-    var l : Int = -1
-
+    var token : String = ""
 }

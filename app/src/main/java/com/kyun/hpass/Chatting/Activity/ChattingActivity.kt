@@ -1,17 +1,23 @@
-package com.kyun.hpass.Chatting
+package com.kyun.hpass.Chatting.Activity
 
 import android.content.ComponentName
 import android.content.Intent
 import android.content.ServiceConnection
 import android.os.Bundle
 import android.os.IBinder
+import android.support.v4.view.GravityCompat
+import android.support.v7.app.ActionBarDrawerToggle
+import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
+import android.text.method.KeyListener
+import android.view.inputmethod.EditorInfo
 import com.kyun.hpass.R
 import com.kyun.hpass.Service.HService
 import com.kyun.hpass.util.objects.Singleton
 import com.kyun.hpass.realmDb.Nomal.ChatList
+import com.kyun.hpass.realmDb.Nomal.ChatMember
 import com.kyun.hpass.realmDb.Nomal.ChatRoom
 import com.kyun.hpass.realmDb.Nomal.Peoples
 import io.realm.Realm
@@ -30,6 +36,7 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
 
     private var realm : Realm = Singleton.getNomalDB()
     private var adapter : ChattingRecyclerAdapter? = null
+    private var layoutmanager : LinearLayoutManager? = null
 
     private var Hs : HService? = null //서비스 객체
     private var isBind : Boolean = false //바인드 여부
@@ -44,6 +51,9 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
     private var keyB : Int = 0 //키보드 상단의 y위치 (높이 거꾸로값)
     private var rState : Boolean = true //키보드 상태
     private var isAble : Boolean = false //키보드 위치만큼 리사이클러뷰가 이동할 수 있는지
+
+    private var isRoomNameChange : Boolean = false
+    private var naviAdapter : ChattingNaviAdapter? = null
 
     val conn = object : ServiceConnection {
         override fun onServiceConnected(p0: ComponentName?, p1: IBinder?) {
@@ -69,17 +79,26 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.setTitle(realm.where(ChatRoom::class.java).equalTo("RoomId",RoomId).findFirst()?.RoomName)
 
+        chat_toolbar_info.setOnClickListener {
+            if(!chat_drawer.isDrawerOpen(GravityCompat.END))
+                chat_drawer.openDrawer(GravityCompat.END)
+        }
+
         chat_text_list.overScrollMode = RecyclerView.OVER_SCROLL_NEVER
-        adapter = ChattingRecyclerAdapter(AlreadyData(realm.where(ChatList::class.java).equalTo("RoomId", RoomId).sort("Time", Sort.DESCENDING).findAll(),count))
+        adapter = ChattingRecyclerAdapter(AlreadyData(realm.where(ChatList::class.java).equalTo("RoomId", RoomId).sort("Time", Sort.DESCENDING).findAll(), count))
         chat_text_list.adapter = adapter
-        val layoutmanager = LinearLayoutManager(this)
-        layoutmanager.reverseLayout = true
-        layoutmanager.stackFromEnd = true
+        layoutmanager = LinearLayoutManager(this)
+        layoutmanager?.reverseLayout = true
+        layoutmanager?.stackFromEnd = true
         chat_text_list.layoutManager = layoutmanager
         chat_text_list.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrollStateChanged(recyclerView: RecyclerView?, newState: Int) {
-                super.onScrollStateChanged(recyclerView, newState)
-                val lp = (chat_text_list.layoutManager as LinearLayoutManager).findLastVisibleItemPosition()
+            override fun onScrolled(recyclerView: RecyclerView?, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+
+                val go = layoutmanager!!.computeScrollVectorForPosition(0)
+                isAble = go.y == 1.0.toFloat()
+
+                val lp = layoutmanager!!.findLastVisibleItemPosition()
                 if(lp + 1 == adapter?.data?.size && !LastP) {
                     val result =
                             if (LastT == 0.toLong())
@@ -89,14 +108,7 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
                     if(result != null) adapter?.addData(newData(result))
                 }
             }
-
-            override fun onScrolled(recyclerView: RecyclerView?, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-                val go = (chat_text_list.layoutManager as LinearLayoutManager).computeScrollVectorForPosition(0)
-                isAble = go.y == 1.0.toFloat()
-            }
         })
-
 
         chat_text_edit.addOnLayoutChangeListener { view, l, t, r, b, ol, or, ob, ot ->
             if(maxB == 0) maxB = b
@@ -116,10 +128,62 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
 
         chat_confirm.setOnClickListener { doChat() }
 
+        chat_navi_room_name_edit.setTag(chat_navi_room_name_edit.keyListener)
+        chat_navi_room_name_edit.keyListener = null
+        chat_navi_room_name_btn.setOnClickListener {
+            if(isRoomNameChange) {
+                realm.executeTransaction {
+                    it.where(ChatRoom::class.java).equalTo("RoomId",RoomId).findFirst()?.RoomName = chat_navi_room_name_edit.text.toString()
+                }
+                chat_navi_room_name_edit.keyListener = null
+            } else {
+                chat_navi_room_name_edit.keyListener = chat_navi_room_name_edit.tag as KeyListener
+            }
+            isRoomNameChange = !isRoomNameChange
+        }
+        chat_navi_room_name_edit.setOnEditorActionListener { textView, i, keyEvent ->
+            if(i == EditorInfo.IME_ACTION_DONE) {
+                realm.executeTransaction {
+                    it.where(ChatRoom::class.java).equalTo("RoomId",RoomId).findFirst()?.RoomName = chat_navi_room_name_edit.text.toString()
+                }
+                chat_navi_room_name_edit.keyListener = null
+                isRoomNameChange = false
+                true
+            }
+            false
+        }
+
+        chat_navi_room_alarm.isChecked = realm.where(ChatRoom::class.java).equalTo("RoomId",RoomId).findFirst()?.isAlarm!!
+
+        chat_navi_room_alarm.setOnCheckedChangeListener { compoundButton, b ->
+            realm.executeTransaction {
+                it.where(ChatRoom::class.java).equalTo("RoomId",RoomId).findFirst()?.isAlarm = b
+            }
+        }
+
+        chat_navi_exit_room.setOnClickListener {
+            AlertDialog.Builder(this).setTitle("채팅방을 나가시겠습니까?").setPositiveButton("예",{ D, I ->
+                if(isBind && Hs!!.isMqttAlive())
+                    Hs?.exitRoom(RoomId)
+                else Singleton.noMqttErrToast(this@ChattingActivity)
+            }).setNegativeButton("아니요", {D,I->D.cancel()}).setCancelable(true).show()
+        }
+
+        naviAdapter = ChattingNaviAdapter(setPeople())
+
+        chat_navi_people_list.adapter = naviAdapter
+
         checkAll()
 
         if(count > 20) chat_text_list.scrollToPosition(count)
         else chat_text_list.scrollToPosition(0)
+    }
+
+    override fun onBackPressed() {
+        if(chat_drawer.isDrawerOpen(GravityCompat.END))
+            chat_drawer.closeDrawer(GravityCompat.END)
+        else
+            super.onBackPressed()
     }
 
     override fun onResume() {
@@ -127,7 +191,6 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
         if(!isBind) bindService(Intent(this,HService::class.java),conn,0)
         if(realm.isClosed) realm = Realm.getDefaultInstance()
     }
-
 
     override fun onDestroy() {
         super.onDestroy()
@@ -139,9 +202,21 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
         realm.close()
     }
 
+    private fun setPeople() : ArrayList<ChattingNaviItem> {
+        val people = realm.where(ChatMember::class.java).equalTo("RoomId",RoomId).findAll()
+        val pArray = ArrayList<ChattingNaviItem>()
+        for(p in people) {
+            if(p.UserId != Singleton.MyId)
+                pArray.add(ChattingNaviItem().set(realm.where(Peoples::class.java).equalTo("UserId",p.UserId).findFirst()!!.UserName))
+        }
+        return pArray
+    }
+
     private fun doChat() {
-        Hs?.pubChat(RoomId,chat_edit.text.toString())
-        chat_edit.setText("")
+        if(isBind && Hs!!.isMqttAlive()) {
+            Hs?.pubChat(RoomId, chat_edit.text.toString())
+            chat_edit.setText("")
+        } else Singleton.noMqttErrToast(this@ChattingActivity)
     }
 
     private fun checkAll() {
@@ -364,7 +439,7 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
             recentT = Time
             recentU = UserId
             adapter?.addData(0, item)
-            if((UserId == Singleton.MyId) || (chat_text_list.layoutManager as LinearLayoutManager).findFirstCompletelyVisibleItemPosition() == 0) {
+            if((UserId == Singleton.MyId) || layoutmanager!!.findFirstCompletelyVisibleItemPosition() == 0) {
                 chat_text_list.smoothScrollToPosition(0)
             }
             checkAll()
@@ -392,6 +467,7 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
             item.itemtype = ChattingRecyclerItem.noti
             item.contents = Content
             adapter?.addData(0,item)
+            naviAdapter?.setNewData(setPeople())
             checkAll()
         }
     }
@@ -400,7 +476,7 @@ class ChattingActivity : AppCompatActivity(), HService.ChatCallBack {
         if(RoomId == this.RoomId) {
             if(realm.where(ChatRoom::class.java).equalTo("RoomId",RoomId).findFirst() == null) finish()
             else {
-                val po = (chat_text_list.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
+                val po = layoutmanager!!.findFirstVisibleItemPosition()
                 adapter?.replaceData(AlreadyData(realm.where(ChatList::class.java).equalTo("RoomId", RoomId).sort("Time", Sort.DESCENDING).findAll(),po-1))
                 chat_text_list.smoothScrollToPosition(po)
             }

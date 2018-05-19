@@ -2,9 +2,10 @@ package com.kyun.hpass
 
 import android.app.Activity
 import android.app.Application
-import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import com.kakao.auth.*
+import com.kyun.hpass.Service.HService
 import com.kyun.hpass.util.objects.Singleton
 import io.realm.Realm
 
@@ -14,7 +15,7 @@ import io.realm.Realm
  */
 class App : Application() {
 
-    var mAppStatus = AppStatus.FOREGROUND
+    var mAppStatus = AppStatus.BACKGROUND
 
     var TopActivity : Activity? = null
 
@@ -22,7 +23,7 @@ class App : Application() {
         super.onCreate()
         Realm.init(this)
         KakaoSDK.init(KakaoSDKAdapter())
-        Singleton.setKey()
+        startService(Intent(this, HService::class.java))
 
         registerActivityLifecycleCallbacks(LifecycleCallbacks())
     }

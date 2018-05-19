@@ -10,17 +10,11 @@ import io.realm.annotations.RealmClass
 open class ChatList : RealmModel {
 
     var RoomId : String = ""
-        internal set
     var ChatId : Int = 0
-        internal set
     var UserId : String = ""
-        internal set
     var Content : String = ""
-        internal set
     var Time : Long = 0
-        internal set
     var check : Boolean = false
-        internal set
 
     fun set(roomid : String, chatid : Int, userid : String, content : String , time : Long) : ChatList {
         RoomId = roomid

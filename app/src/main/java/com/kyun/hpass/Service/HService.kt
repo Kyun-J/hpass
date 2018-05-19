@@ -1,18 +1,16 @@
 package com.kyun.hpass.Service
 
-import android.Manifest
 import android.app.*
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
+import android.content.SharedPreferences
 import android.media.RingtoneManager
 import android.os.*
 import android.preference.PreferenceManager
 import android.support.v4.app.NotificationCompat
-import android.support.v4.content.ContextCompat
-import android.telephony.TelephonyManager
 import android.util.Log
 import com.google.gson.JsonObject
+import com.kyun.hpass.App
 import com.kyun.hpass.util.objects.Singleton
 import org.eclipse.paho.client.mqttv3.*
 
@@ -68,7 +66,8 @@ class HService : Service() {
 //    <string name="location">lo</string>
 
     //일반
-    private var nid : Int = 0 //notification id
+    private var pref : SharedPreferences? = null
+    private var edit : SharedPreferences.Editor? = null
     private var myId : String = "" //user id
     private var myN : String = "" //user name
     private val reqChatList : JsonObject = JsonObject()
@@ -98,25 +97,25 @@ class HService : Service() {
         for(c in mChats) c.DetectChange(roomid)
     }
 
+    fun isMqttAlive() : Boolean {
+        return mqttclient != null && mqttclient!!.isConnected
+    }
+
     //생명주기
     override fun onCreate() { //초기값
         super.onCreate()
         Log.i("HService","Create")
-        nid = PreferenceManager.getDefaultSharedPreferences(this).getInt("nid", 0)
+        pref = PreferenceManager.getDefaultSharedPreferences(this)
+        edit = pref?.edit()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { //realm mqtt 세팅
         Log.i("HService","Start")
-        Singleton.addKeyCheck (object : Singleton.isCheck {
-            override fun Check() {
-                mqttSetting()
-                if(realm == null || realm!!.isClosed) {
-                    realm = Singleton.getNomalDB()
-                    myN = realm!!.where(MyInfo::class.java).findFirst()!!.Name
-                    myId = realm!!.where(MyInfo::class.java)!!.findFirst()!!.Email
-                    Singleton.MyId = myId
-                }
-            }
+        if(((application as App).isBackground())) {Singleton.init(application as App)}
+        Singleton.keyCheck ({
+            mqttSetting()
+            if(realm == null || realm!!.isClosed)
+                realm = Singleton.getNomalDB()
         })
         return Service.START_STICKY
     }
@@ -129,8 +128,7 @@ class HService : Service() {
     override fun onDestroy() { //종료시
         super.onDestroy()
         Log.i("HService","Destroy")
-        PreferenceManager.getDefaultSharedPreferences(this).edit().putInt("nid",nid).commit()
-        if(realm != null || !realm!!.isClosed) realm!!.close()
+        if(realm != null && !realm!!.isClosed) realm!!.close()
         mqttclient?.isConnected?.let { if(it) mqttclient?.disconnect() }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) { //재시작 알람
@@ -144,6 +142,7 @@ class HService : Service() {
 
     private fun mqttSetting() { //mqtt세팅
         if(mqttclient == null) {
+            Log.i("mqtt", "mqtt setting start")
             mqttclient = MqttAsyncClient(IgnoreValues.BrokerUrl, myId, MemoryPersistence(), customSender())
             mqttclient?.setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String) {
@@ -162,21 +161,23 @@ class HService : Service() {
 
                 override fun connectionLost(cause: Throwable) {
                     Log.e("mqttlost", cause.toString())
+                    handler.post {
+                        Singleton.isOnNetwork(application as App, {
+                            if(it) {
+                                if(mqttclient == null) mqttSetting()
+                                else mqttclient?.reconnect()
+                            }
+                        })
+                    }
                 }
 
                 override fun deliveryComplete(token: IMqttDeliveryToken?) {
                     Log.i("mqttpub", "success pub : " + token?.topics)
                 }
             })
-            mqttclient?.isConnected?.let {
-                if(!it) {
-                    val ConnectOption = MqttConnectOptions()
-                    ConnectOption.isAutomaticReconnect = true
-                    ConnectOption.keepAliveInterval = 180
-                    //ConnectOption.isCleanSession = false
-                    mqttclient?.connect(ConnectOption)
-                }
-            }
+            val ConnectOption = MqttConnectOptions()
+            ConnectOption.keepAliveInterval = 180
+            mqttclient!!.connect(ConnectOption)
         }
     }
 
@@ -188,7 +189,7 @@ class HService : Service() {
         val ussi = users.size
 
         val topics = Array(ctsi*5 + ussi*1 + 3) {""}
-        val qoses = IntArray(topics.size) {1}
+        val qoses = IntArray(topics.size) {0}
         for(po in chatrooms.indices) {
             val rid = chatrooms[po]?.RoomId
             topics[po*5] = rid+'/'+lastIdS+'/'+myId
@@ -281,7 +282,7 @@ class HService : Service() {
                 if(Atopic[2] == myId) { //요청을 받음 내 최대 id를 알려줌
                     var lastid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",myId).max("ChatId")?.toInt()
                     if(lastid == null) lastid = 0
-                    mqttclient?.publish(key+'/'+lastIdS+'/'+myId,lastid.toString().toByteArray(),1,false)
+                    mqttclient?.publish(key+'/'+lastIdS+'/'+myId,lastid.toString().toByteArray(),0,false)
                 } else if(Amsg.size != 0){ //응답을 받음
                     var lastid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[2]).max("ChatId")?.toInt()
                     singleSubscribe(key+'/'+reqChatS+'/'+Amsg[0],1)
@@ -290,7 +291,7 @@ class HService : Service() {
                     if(lastid == null) lastid = Amsg[0].toInt()
                     reqChatList.addProperty(key,Amsg[0].toInt() - lastid)
                     for(i in start..(Amsg[0].toInt() - lastid)) //내 최대아이디가 낮으면 차이만큼 메세지 내용 요청
-                        mqttclient?.publish(key+'/'+reqChatS+'/'+Amsg[0],(lastid+i).toString().toByteArray(),1,false)
+                        mqttclient?.publish(key+'/'+reqChatS+'/'+Amsg[0],(lastid+i).toString().toByteArray(),0,false)
                 }
             } else {
                 Log.e("chat","Incorrect msg")
@@ -301,7 +302,7 @@ class HService : Service() {
             if(realkey != null && Atopic.size == 3 && Amsg.size != 0) {
                 if (Atopic[2] == myId) {
                     val cons = realm!!.where(ChatList::class.java).equalTo("RoomId", key).equalTo("UserId", myId).equalTo("ChatId", Amsg[0]).findFirst()
-                    if (cons != null) mqttclient?.publish(key + '/' + reqChatS + '/' + myId, (Amsg[0] + '/' + cons.Content + '/' + cons.Time).toByteArray(), 1, false)
+                    if (cons != null) mqttclient?.publish(key + '/' + reqChatS + '/' + myId, (Amsg[0] + '/' + cons.Content + '/' + cons.Time).toByteArray(), 0, false)
                     else Log.e("chat", "Incorrect chatId")
                 } else {
                     val thatid = realm!!.where(ChatList::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[1]).equalTo("ChatId",Amsg[0].toInt()).findFirst()
@@ -343,23 +344,24 @@ class HService : Service() {
                     }, object : Realm.Transaction.OnSuccess {
                         override fun onSuccess() {
                             Log.i("chat", "insert chat in : " + realkey.RoomName)
-                            if(Amsg[0].toInt() > 0) {
-                                var username = realm!!.where(Peoples::class.java).equalTo("UserId", Amsg[1]).findFirst()?.UserName
-                                if (username == null) username = resources.getString(R.string.unknown)!!
-                                for (c in mChats) c.newChat(key,Amsg[1], username, Amsg[2], Amsg[3].toLong())
-                                if (!Singleton.isChattingRoom(application, key)) { // 노티 발생
-                                    (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(nid,
-                                            NotificationCompat.Builder(this@HService, "mqtt")
-                                                    .setSmallIcon(R.mipmap.ic_launcher_round)
-                                                    .setVibrate(longArrayOf(500, 500, 500)).setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
-                                                    .setPriority(NotificationCompat.PRIORITY_HIGH).setContentTitle(Amsg[2])
-                                                    .setContentText(message.toString()).build())
-                                    if (nid + 1 == Int.MAX_VALUE) nid = 0
-                                    else nid++
+                            var username = realm!!.where(Peoples::class.java).equalTo("UserId", Amsg[1]).findFirst()?.UserName
+                            if (username == null) username = resources.getString(R.string.unknown)!!
+                            if (!Singleton.isChattingRoom(application, key) && realkey.isAlarm && Amsg[1] != myId) { // 알람 발생
+                                var pr = pref!!.getInt(key, -1)
+                                if (pr == -1) {
+                                    pr = pref!!.getInt("notimax", 0)
+                                    edit!!.putInt(key, pr)
+                                    edit!!.putInt("notimax", pr + 1)
+                                    edit!!.commit()
                                 }
-                            } else {
-                                for(c in mChats) c.newNoti(key,Amsg[2],Amsg[3].toLong())
+                                (getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager).notify(pr,
+                                        NotificationCompat.Builder(this@HService, "mqtt")
+                                                .setSmallIcon(R.mipmap.ic_launcher_round)
+                                                .setVibrate(longArrayOf(500, 500, 500)).setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
+                                                .setPriority(NotificationCompat.PRIORITY_HIGH).setContentTitle(username)
+                                                .setContentText(Amsg[2]).build())
                             }
+                            for (c in mChats) c.newChat(key, Amsg[1], username, Amsg[2], Amsg[3].toLong())
                         }
                     }, object : Realm.Transaction.OnError {
                         override fun onError(error: Throwable) {
@@ -372,7 +374,7 @@ class HService : Service() {
             }
         } else if(kind == inviteRS) {// 채팅방 초대
             val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",key).findFirst()
-            if(realkey != null && Atopic.size == 2 && Amsg[0] != myId) {//초대된 유저 확인
+            if(realkey != null && Amsg[0] != myId) {//초대된 유저 확인
                 val ruser = realm!!.where(ChatMember::class.java).equalTo("RoomId",key).equalTo("UserId",Amsg[0]).findFirst()
                 if(ruser == null) {
                     val user = realm!!.where(Peoples::class.java).equalTo("UserId",Amsg[0]).findFirst()
@@ -380,10 +382,12 @@ class HService : Service() {
                         realm!!.executeTransactionAsync(Realm.Transaction {
                             it.insert(ChatMember().set(key, Amsg[0]))
                             it.insert(Peoples().set(Amsg[0],Amsg[1]))
+                            it.insert(ChatList().set(key, 0, Amsg[0], Amsg[1]+resources.getString(R.string.newin), Amsg[2].toLong()))
                         }, object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
                                 Log.i("chat", "newUser in : " + realkey.RoomName)
                                 SubscribePeople(Amsg[0])
+                                for(c in mChats) c.newNoti(key,Amsg[1]+resources.getString(R.string.newin),Amsg[2].toLong())
                             }
                         }, object : Realm.Transaction.OnError {
                             override fun onError(error: Throwable?) {
@@ -393,9 +397,11 @@ class HService : Service() {
                     } else {
                         realm!!.executeTransactionAsync(Realm.Transaction {
                             it.insert(ChatMember().set(key, Amsg[0]))
+                            it.insert(ChatList().set(key, 0, Amsg[0], user.UserName+resources.getString(R.string.newin), Amsg[2].toLong()))
                         }, object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
                                 Log.i("chat", "newUser in : " + realkey.RoomName)
+                                for(c in mChats) c.newNoti(key,user.UserName+resources.getString(R.string.newin),Amsg[2].toLong())
                             }
                         }, object : Realm.Transaction.OnError {
                             override fun onError(error: Throwable?) {
@@ -404,10 +410,11 @@ class HService : Service() {
                         })
                     }
                 }
-            } else if(key == myId && Amsg.size == 3)  { //초대를 받음
+            } else if(key == myId)  { //초대를 받음
                 val users = Amsg[2].split(',')
                 val umodel = ArrayList<ChatMember>()
                 val pmodel = ArrayList<Peoples>()
+                val nowtime = Calendar.getInstance().timeInMillis
                 for(u in users) {
                     val info = u.split('&')
                     if(info.size == 2) {
@@ -420,22 +427,14 @@ class HService : Service() {
                     it.insert(ChatRoom().set(Amsg[0],Amsg[1]))
                     it.insert(umodel)
                     it.insert(pmodel)
+                    it.insert(ChatList().set(Amsg[0],0,myId,myN+resources.getString(R.string.newin),nowtime))
                 },object : Realm.Transaction.OnSuccess {
                     override fun onSuccess() {
                         Log.i("chat","join suc")
                         for(c in mChats) c.DetectChange(Amsg[0])
                         for(u in pmodel) SubscribePeople(u.UserId)
+                        mqttclient?.publish(Amsg[0]+'/'+inviteRS,(myId+'/'+myN+'/'+nowtime).toByteArray(),0,false) //내가 초대된 사실 알림
                         SubscribeRoom(Amsg[0])
-                        mqttclient?.publish(Amsg[0]+'/'+inviteRS,(myId+'/'+realm!!.where(MyInfo::class.java).findFirst()?.Name).toByteArray(),0,false,this,object : IMqttActionListener {
-                            override fun onSuccess(asyncActionToken: IMqttToken?) {
-                                Log.i("chat", "newin chat in : " + Amsg[1])
-                                mqttclient?.publish(Amsg[0]+'/'+chatS,("0/"+myId+'/'+myN+resources.getString(R.string.newin)+'/'+Calendar.getInstance().timeInMillis).toByteArray(),0,false)
-                            }
-
-                            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                                Log.e("chat", "newin chat err : ", exception)
-                            }
-                        }) //내가 초대된 사실 알림
                     }
                 },object : Realm.Transaction.OnError{
                     override fun onError(error: Throwable?) {
@@ -457,6 +456,7 @@ class HService : Service() {
                         }, object : Realm.Transaction.OnSuccess {
                             override fun onSuccess() {
                                 Log.i("chat", "exit user suc")
+                                for(c in mChats) c.newNoti(key,realm!!.where(Peoples::class.java).equalTo("UserId",Amsg[0]).findFirst()!!.UserName+resources.getString(R.string.chatout),Amsg[2].toLong())
                             }
                         }, object : Realm.Transaction.OnError {
                             override fun onError(error: Throwable?) {
@@ -465,6 +465,7 @@ class HService : Service() {
                         })
                     }
                 } else { //내가나감
+                    unSubscribeRoom(key)
                     realm!!.executeTransactionAsync(Realm.Transaction {
                         it.where(ChatList::class.java).equalTo("RoomId", key).findAll()?.deleteAllFromRealm()
                         it.where(ChatMember::class.java).equalTo("RoomId", key).findAll()?.deleteAllFromRealm()
@@ -487,9 +488,9 @@ class HService : Service() {
             if(Atopic.size == 2 && Amsg.size == 1 && key == myId) {
                 val realkey = realm!!.where(ChatRoom::class.java).equalTo("RoomId",Amsg[0]).findFirst()
                 if(realkey == null)
-                    mqttclient?.publish(Amsg[0]+'/'+isUserS+'/'+myId,"no".toByteArray(),1,false)
+                    mqttclient?.publish(Amsg[0]+'/'+isUserS+'/'+myId,"no".toByteArray(),0,false)
                 else
-                    mqttclient?.publish(Amsg[0]+'/'+isUserS+'/'+myId,"yes".toByteArray(),1,false)
+                    mqttclient?.publish(Amsg[0]+'/'+isUserS+'/'+myId,"yes".toByteArray(),0,false)
             } else if(Atopic.size == 3 && Amsg.size == 1 && Atopic[2] != myId) {
                 if(Amsg[0] == "no") {
                     val user = realm!!.where(ChatMember::class.java).equalTo("RoomId",key).equalTo("UserId",Atopic[2]).findFirst()
@@ -602,10 +603,10 @@ class HService : Service() {
     }
 
     fun CheckChats(roomid : String, userid : String) {
-        mqttclient?.subscribe(roomid+'/'+lastIdS+'/'+userid,1,this,object : IMqttActionListener {
+        mqttclient?.subscribe(roomid+'/'+lastIdS+'/'+userid,0,this,object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
                 Log.i("mqttsub","mqtt subscribe success")
-                mqttclient?.publish(roomid+'/'+lastIdS+'/'+userid,null,1,false)
+                mqttclient?.publish(roomid+'/'+lastIdS+'/'+userid,null,0,false)
             }
 
             override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
@@ -619,7 +620,7 @@ class HService : Service() {
         if(max == null) max = 1
         else max++
         val nowtime = Calendar.getInstance().timeInMillis
-        mqttclient?.publish(roomid+'/'+chatS,(max.toString()+'/'+myId+'/'+content+'/'+nowtime).toByteArray(),1,false)
+        mqttclient?.publish(roomid+'/'+chatS,(max.toString()+'/'+myId+'/'+content+'/'+nowtime).toByteArray(),0,false)
     }
 
     fun inviteUser(userid : String, roomid : String) { // 새 유저 초대
@@ -630,19 +631,7 @@ class HService : Service() {
             val uN = realm!!.where(Peoples::class.java).equalTo("UserId",u.UserId).findFirst()?.UserName
             users += u.UserId+'&'+uN+','
         }
-        mqttclient?.publish(userid+'/'+inviteRS,(roomid+'/'+roomN+'/'+users).toByteArray(),1,false, this, object : IMqttActionListener{
-            override fun onSuccess(asyncActionToken: IMqttToken?) {
-                handler.post {
-                    if(realm!!.where(Peoples::class.java).equalTo("UserId",userid).findFirst() == null) {
-                        realm!!.executeTransaction { it.insert(Peoples().set(userid,resources.getString(R.string.unknown))) }
-                    }
-                }
-            }
-
-            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-            }
-        })
+        mqttclient?.publish(userid+'/'+inviteRS,(roomid+'/'+roomN+'/'+users).toByteArray(),0,false)
     }
 
     fun exitRoom(roomid : String) {
@@ -650,9 +639,9 @@ class HService : Service() {
     }
 
     fun checkisUser(roomid : String, userid : String) {
-        mqttclient?.subscribe(roomid+'/'+isUserS+'/'+userid,1,this,object : IMqttActionListener {
+        mqttclient?.subscribe(roomid+'/'+isUserS+'/'+userid,0,this,object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
-                mqttclient?.publish(userid+'/'+isUserS,roomid.toByteArray(),1,false)
+                mqttclient?.publish(userid+'/'+isUserS,roomid.toByteArray(),0,false)
             }
 
             override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
@@ -662,53 +651,56 @@ class HService : Service() {
     }
 
     fun reqFriend(userid : String) {
-        val user = realm!!.where(Peoples::class.java).equalTo("UserId",userid).findFirst()
-        if(user != null && !user.isFriend && !user.isBan) {
-            mqttclient?.publish(userid + '/' + newFS, (myId + '/' + myN).toByteArray(), 1, false, this, object : IMqttActionListener {
-                override fun onSuccess(asyncActionToken: IMqttToken?) {
-                    realm!!.executeTransactionAsync(Realm.Transaction {
-                        user?.doRequest = true
-                    }, object : Realm.Transaction.OnSuccess {
-                        override fun onSuccess() {
-                            Log.i("friends", "req friend")
-                        }
-                    }, object : Realm.Transaction.OnError {
-                        override fun onError(error: Throwable?) {
-                            Log.e("friends", "req friend err : ", error)
-                        }
-                    })
-                }
-
-                override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                    Log.e("friends", "req friend err : ", exception)
-                }
-            })
-        }
-    }
-
-    fun changeName(name : String) {
-        mqttclient?.publish(myId+'/'+changeNS,name.toByteArray(),1,false,this,object : IMqttActionListener {
-            override fun onSuccess(asyncActionToken: IMqttToken?) {
-                realm!!.executeTransactionAsync(Realm.Transaction {
-                    val my = it.where(MyInfo::class.java).findFirst()
-                    my?.Name = name
-                }, object : Realm.Transaction.OnSuccess {
-                    override fun onSuccess() {
-                        Log.i("MyInfo", "change my name")
+        if(realm != null) {
+            val user = realm!!.where(Peoples::class.java).equalTo("UserId", userid).findFirst()
+            if (user != null && !user.isFriend && !user.isBan) {
+                mqttclient?.publish(userid + '/' + newFS, (myId + '/' + myN).toByteArray(), 0, false, this, object : IMqttActionListener {
+                    override fun onSuccess(asyncActionToken: IMqttToken?) {
+                        realm!!.executeTransactionAsync(Realm.Transaction {
+                            user?.doRequest = true
+                        }, object : Realm.Transaction.OnSuccess {
+                            override fun onSuccess() {
+                                Log.i("friends", "req friend")
+                            }
+                        }, object : Realm.Transaction.OnError {
+                            override fun onError(error: Throwable?) {
+                                Log.e("friends", "req friend err : ", error)
+                            }
+                        })
                     }
-                }, object : Realm.Transaction.OnError {
-                    override fun onError(error: Throwable?) {
-                        Log.e("MyInfo", "change my name err : ", error)
+
+                    override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                        Log.e("friends", "req friend err : ", exception)
                     }
                 })
             }
-
-            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                Log.e("MyInfo", "change my name err : ", exception)
-            }
-        })
+        } else {
+            //err
+        }
     }
 
+//    fun changeName(name : String) {
+//        mqttclient?.publish(myId+'/'+changeNS,name.toByteArray(),1,false,this,object : IMqttActionListener {
+//            override fun onSuccess(asyncActionToken: IMqttToken?) {
+//                realm!!.executeTransactionAsync(Realm.Transaction {
+//                    val my = it.where(MyInfo::class.java).findFirst()
+//                    my?.Name = name
+//                }, object : Realm.Transaction.OnSuccess {
+//                    override fun onSuccess() {
+//                        Log.i("MyInfo", "change my name")
+//                    }
+//                }, object : Realm.Transaction.OnError {
+//                    override fun onError(error: Throwable?) {
+//                        Log.e("MyInfo", "change my name err : ", error)
+//                    }
+//                })
+//            }
+//
+//            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+//                Log.e("MyInfo", "change my name err : ", exception)
+//            }
+//        })
+//    }
 
     //핸들러를 통한 mqtt ping check
     private inner class customSender : MqttPingSender {
