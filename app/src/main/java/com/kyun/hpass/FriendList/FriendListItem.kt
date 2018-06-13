@@ -10,12 +10,14 @@ class FriendListItem : MultiItemEntity {
     }
 
     var itemtype = 0
-    var contents = ""
+    var name = ""
     var addInfo = ""
+    var id = ""
 
-    fun set (itemtype : Int, contents : String, addInfo : String) : FriendListItem {
+    fun set (itemtype : Int, id : String, name : String, addInfo : String) : FriendListItem {
         this.itemtype = itemtype
-        this.contents = contents
+        this.id = id
+        this.name = name
         this.addInfo = addInfo
         return this
     }

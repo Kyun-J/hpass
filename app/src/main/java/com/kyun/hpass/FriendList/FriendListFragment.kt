@@ -3,7 +3,6 @@ package com.kyun.hpass.FriendList
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
-import android.provider.ContactsContract
 import android.support.v4.app.Fragment
 import android.support.v7.widget.LinearLayoutManager
 import android.view.LayoutInflater
@@ -16,7 +15,6 @@ import com.kyun.hpass.App
 import com.kyun.hpass.R
 import com.kyun.hpass.realmDb.Nomal.Peoples
 import com.kyun.hpass.util.objects.Codes
-import com.kyun.hpass.util.objects.Constant
 import com.kyun.hpass.util.objects.FriendEvent
 import com.kyun.hpass.util.objects.Singleton
 import kotlinx.android.synthetic.main.fragment_friend_list.*
@@ -27,14 +25,14 @@ import retrofit2.Response
 @SuppressLint("ValidFragment")
 class FriendListFragment : Fragment() {
 
-    private var mContext : Context? = null
-    private var realm = Singleton.getNomalDB()
+    private lateinit var mContext : Context
+    private val realm by lazy { Singleton.getNomalDB()}
 
-    private var layoutManager : LinearLayoutManager? = null
-    private var adapter : FriendListAdapter? = null
+    private lateinit var layoutManager : LinearLayoutManager
+    private lateinit var adapter : FriendListAdapter
 
     private val fEvent : () -> Unit = {
-        adapter?.replaceData(getFriendList())
+        adapter.replaceData(getFriendList())
     }
 
     override fun onAttach(context: Context) {
@@ -48,44 +46,38 @@ class FriendListFragment : Fragment() {
 
     override fun onActivityCreated(savedInstanceState: Bundle?) {
         super.onActivityCreated(savedInstanceState)
-        layoutManager = LinearLayoutManager(mContext)
-        adapter = FriendListAdapter(getFriendList())
-        friend_list_recycler.layoutManager = layoutManager
-        friend_list_recycler.adapter = adapter
-        FriendEvent.addList(fEvent)
-        addFriendsFromPH()
+        Singleton.keyCheck {
+            layoutManager = LinearLayoutManager(mContext)
+            adapter = FriendListAdapter(getFriendList())
+            friend_list_recycler.layoutManager = layoutManager
+            friend_list_recycler.adapter = adapter
+            FriendEvent.addList(fEvent)
+            addFriendsFromPH()
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
-        realm.close()
+        if(!realm.isClosed) realm.close()
         FriendEvent.removeList(fEvent)
     }
 
     private fun addFriendsFromPH() {
-        val uri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI
-        val projection = arrayOf(
-                ContactsContract.CommonDataKinds.Phone.NUMBER,
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-        val cursor = mContext!!.contentResolver.query(uri,projection,null,null,
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME+" COLLATE LOCALIZED ASC")
+        val cursor = Singleton.postBook(mContext)
         val json = JsonObject()
         val data = JsonArray()
-        json.addProperty("user_token",Singleton.userToken)
         while(cursor.moveToNext()) {
             val friend = JsonObject()
-            friend.addProperty("phone",cursor.getString(0).replace("-",""))
+            friend.addProperty("phone",cursor.getString(0).replace("-","").replace("+82 ","0"))
             friend.addProperty("name",cursor.getString(1))
             data.add(friend)
         }
         cursor.close()
         json.add("friends",data)
         if(data.size() > 0) {
-            var count = 0
-            val Tcall = Singleton.RetroService.addFriendsByPH(json)
-            Tcall.enqueue(object : Callback<JsonElement> {
+            Singleton.RetroService.addFriendsByPH(Singleton.userToken,json).enqueue(object : Callback<JsonElement> {
                 override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
-                    if (response.isSuccessful) {
+                    if (response.code() == 200) {
                         val friends = response.body()!!.asJsonArray
                         for (f in friends) {
                             val ff = f.asJsonObject
@@ -105,23 +97,22 @@ class FriendListFragment : Fragment() {
                                 }
                             }
                         }
-                        adapter?.replaceData(getFriendList())
-                    } else if(response.code() == 503) {
-                        if(response.errorBody()!!.string() == Codes.expireToken) {
-                            Singleton.resetToken(mContext as App, count, {
-                                if(count >= Constant.retry) {
-                                    Singleton.loginErrToast(mContext!!)
+                        adapter.replaceData(getFriendList())
+                    } else if(response.code() == 202) {
+                        if(response.body()!!.toString() == Codes.expireToken) {
+                            Singleton.resetToken(mContext, {
+                                if(!it) {
+                                    Singleton.loginErrToast(mContext)
                                 } else {
-                                    Tcall.enqueue(this)
-                                    count++
+                                    Singleton.RetroService.addFriendsByPH(Singleton.userToken,json).enqueue(this)
                                 }
                             })
-                        } else Singleton.serverErrToast(mContext!!, response.errorBody()!!.string())
-                    } else Singleton.serverErrToast(mContext!!, Codes.serverErr)
+                        } else Singleton.serverErrToast(mContext, response.body()!!.toString())
+                    } else Singleton.serverErrToast(mContext, Codes.serverErr)
                 }
 
                 override fun onFailure(call: Call<JsonElement>?, t: Throwable?) {
-                    Singleton.notOnlineToast(mContext!!)
+                    Singleton.notOnlineToast(mContext)
                 }
             })
             var change = false
@@ -135,7 +126,7 @@ class FriendListFragment : Fragment() {
                     }
                 }
             }
-            if(change) adapter?.replaceData(getFriendList())
+            if(change) adapter.replaceData(getFriendList())
         }
     }
 
@@ -145,7 +136,7 @@ class FriendListFragment : Fragment() {
                 .equalTo("isBan",false)
                 .equalTo("isFriend",true)
                 .sort("UserName").findAll()
-        for(f in friends) result.add(FriendListItem().set(0,f.UserName,""))
+        for(f in friends) result.add(FriendListItem().set(FriendListItem.friends,f.UserId,f.UserName,""))
         return result
     }
 }

@@ -16,4 +16,7 @@
     <string name="navi_open">navi_open</string>
     <string name="navi_close">navi_close</string>
 
+
+    <string name="noti_chat">notichat</string>
+
 </resources>

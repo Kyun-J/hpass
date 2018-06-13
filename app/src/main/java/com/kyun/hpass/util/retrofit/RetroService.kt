@@ -27,23 +27,26 @@ interface RetroService {
 
     @FormUrlEncoded
     @POST("newUser")
-    fun newUser(@Field("id") email : String,
+    fun newUser(@Field("sid") sid : String,
+                @Field("uid") uid : String,
                 @Field("name") name : String,
                 @Field("phone") phone : String) : Call<JsonElement>
 
     @FormUrlEncoded
-    @POST("findFriends")
-    fun findFriends(@Field("user_token") token: String) : Call<JsonElement>
+    @POST("getFriends")
+    fun getFriends(@Field("user_token") token: String) : Call<JsonElement>
 
     @FormUrlEncoded
     @POST("addFriend")
-    fun addFriend(@Field("user_token") token: String,
+    fun addFriend(@Field("user_token") token : String,
+                  @Field("name") name : String,
                   @Field("friend_id") fid : String,
                   @Field("phone") phone: String) : Call<ResponseBody>
 
     @FormUrlEncoded
     @POST("addFrinedsByPhone")
-    fun addFriendsByPH(@Field("data") data : JsonObject) : Call<JsonElement>
+    fun addFriendsByPH(@Field("user_token") token : String,
+                       @Field("data") data : JsonObject) : Call<JsonElement>
 
     @FormUrlEncoded
     @POST("searchFriendByPH")
@@ -51,8 +54,18 @@ interface RetroService {
                          @Field("phone") phone: String) : Call<JsonElement>
 
     @FormUrlEncoded
+    @POST("searchFriendById")
+    fun searchFriendById(@Field("user_token") token: String,
+                         @Field("friend_id") id: String) : Call<JsonElement>
+
+    @FormUrlEncoded
+    @POST("findMyRooms")
+    fun findMyRooms(@Field("user_token") token: String) : Call<JsonElement>
+
+    @FormUrlEncoded
     @POST("addFriendsById")
-    fun addFriendsById(@Field("data") data : JsonObject) : Call<JsonElement>
+    fun addFriendsById(@Field("user_token") token : String,
+                       @Field("data") data : JsonObject) : Call<JsonElement>
 
     @FormUrlEncoded
     @POST("blockFriend")

@@ -23,6 +23,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:id="@+id/search_edit"
+            android:lines="1"
+            android:inputType="text"
             android:imeOptions="actionSearch"
             android:layout_weight="8"/>
         <Button

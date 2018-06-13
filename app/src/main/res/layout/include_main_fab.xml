@@ -4,6 +4,14 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
+    <View
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:id="@+id/fab_backgroud"
+        android:visibility="gone"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@+id/main_fab"/>
+
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

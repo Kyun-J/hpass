@@ -1,6 +1,6 @@
 package com.kyun.hpass.Main.FriendSearch
 
-class PhoneSearchItem {
+class FriendSearchItem {
 
     companion object {
         val notFriend = 0
@@ -13,7 +13,7 @@ class PhoneSearchItem {
     var phone : String = ""
     var status : Int = 0
 
-    fun set(name : String, id : String, phone : String, status : Int) : PhoneSearchItem {
+    fun set(name : String, id : String, phone : String, status : Int) : FriendSearchItem {
         this.name = name
         this.phone = phone
         this.id = id

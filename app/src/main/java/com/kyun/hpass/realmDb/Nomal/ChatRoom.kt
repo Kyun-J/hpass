@@ -1,14 +1,14 @@
 package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.RealmModel
+import io.realm.RealmObject
 import io.realm.annotations.PrimaryKey
 import io.realm.annotations.RealmClass
 
 /**
  * Created by kyun on 2018. 3. 20..
  */
-@RealmClass
-open class ChatRoom : RealmModel{
+open class ChatRoom : RealmObject(){
 
     @PrimaryKey
     var RoomId : String = ""

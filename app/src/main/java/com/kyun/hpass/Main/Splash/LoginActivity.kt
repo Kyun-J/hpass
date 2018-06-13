@@ -29,12 +29,18 @@ import com.kakao.usermgmt.UserManagement
 import com.kakao.usermgmt.callback.MeResponseCallback
 import com.kakao.usermgmt.response.model.UserProfile
 import com.kakao.util.exception.KakaoException
+import com.kyun.hpass.App
 import com.kyun.hpass.Main.MainActivity
 import com.kyun.hpass.R
 import com.kyun.hpass.realmDb.Basic.Token
+import com.kyun.hpass.realmDb.Nomal.ChatMember
+import com.kyun.hpass.realmDb.Nomal.ChatRoom
 import com.kyun.hpass.realmDb.Nomal.MyInfo
+import com.kyun.hpass.realmDb.Nomal.Peoples
 import com.kyun.hpass.util.objects.Codes
 import com.kyun.hpass.util.objects.Singleton
+import io.realm.Realm
+import io.realm.kotlin.deleteFromRealm
 import kotlinx.android.synthetic.main.activity_login.*
 import retrofit2.Call
 import retrofit2.Callback
@@ -85,7 +91,7 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
     }
 
     //새 유저 등록
-    private fun newUser(id : String, type: String, name : String) {
+    private fun newUser(sid : String, type: String, name : String) {
         login_new_user_info.visibility = View.VISIBLE
         login_buttons.visibility = View.GONE
         val telManager = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
@@ -96,27 +102,36 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
                     "0"
         if(PhoneNum == null) PhoneNum = "0"
         else if(PhoneNum.length < 8) PhoneNum = "0"
-        else PhoneNum.replace("-","")
-
-        PhoneNum = "010100"
-
-        if(PhoneNum != "0") login_phone.setText(PhoneNum)
+        else {
+            Singleton.toPhoneNum(PhoneNum)
+            login_phone.setText(PhoneNum)
+        }
 
         login_name.setText(name)
+        login_id.setText(sid)
+
 
         login_name.setOnEditorActionListener { textView, i, keyEvent ->
+            if(i == EditorInfo.IME_ACTION_NEXT) {
+                login_name.clearFocus()
+                login_id.requestFocus()
+                true
+            } else false
+        }
+        login_id.setOnEditorActionListener { textView, i, keyEvent ->
             if(i == EditorInfo.IME_ACTION_DONE) {
                 Singleton.RetroService
-                        .newUser(id,textView.text.toString(),PhoneNum)
+                        .newUser(sid,textView.text.toString(),login_name.text.toString(),PhoneNum)
                         .enqueue(object : Callback<JsonElement> {
                             override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
                                 if(response.isSuccessful) {
-                                    if(response.body().toString() == Codes.alreadyPH)
-                                        Toast.makeText(this@LoginActivity,"이미 존재하는 번호입니다",Toast.LENGTH_SHORT).show()
+                                    if(response.body().toString() == Codes.alreadyUser)
+                                        Toast.makeText(this@LoginActivity,"이미 가입된 아이디 혹은 전화번호입니다.",Toast.LENGTH_SHORT).show()
                                     else {
                                         val json = response.body()!!.asJsonObject
+                                        json.addProperty("id",textView.text.toString())
                                         json.addProperty("name", textView.text.toString())
-                                        dofinish(json, id, type)
+                                        dofinish(json, type)
                                     }
                                 }
                             }
@@ -130,16 +145,17 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
         }
         login_done.setOnClickListener {
             Singleton.RetroService
-                    .newUser(id,login_name.text.toString(),PhoneNum)
+                    .newUser(sid,login_id.text.toString(),login_name.text.toString(),PhoneNum)
                     .enqueue(object : Callback<JsonElement> {
                         override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
                             if(response.isSuccessful) {
-                                if(response.body().toString() == Codes.alreadyPH)
-                                    Toast.makeText(this@LoginActivity,"이미 존재하는 번호입니다",Toast.LENGTH_SHORT).show()
+                                if(response.body().toString() == Codes.alreadyUser)
+                                    Toast.makeText(this@LoginActivity,"이미 가입된 아이디 혹은 전화번호입니다.",Toast.LENGTH_SHORT).show()
                                 else {
                                     val json = response.body()!!.asJsonObject
+                                    json.addProperty("id",login_id.text.toString())
                                     json.addProperty("name", login_name.text.toString())
-                                    dofinish(json, id, type)
+                                    dofinish(json, type)
                                 }
                             }
 
@@ -191,7 +207,7 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
                         val id = makeId(account.id!!,Codes.google)
                         if (response.body().toString() == Codes.notUser) { //등록되지 않은 유저
                             newUser(id,Codes.google, account.displayName!!)
-                        } else dofinish(response.body()!!.asJsonObject, id, Codes.google)
+                        } else dofinish(response.body()!!.asJsonObject, Codes.google)
                     }
                 }
 
@@ -217,7 +233,7 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
                             val id = makeId(Lresult.id.toString(),Codes.kakao)
                             if(response.body().toString() == Codes.notUser) { //등록되지 않은 유저
                                 newUser(id,Codes.kakao,Lresult.nickname)
-                            } else dofinish(response.body()!!.asJsonObject,id,Codes.kakao)
+                            } else dofinish(response.body()!!.asJsonObject,Codes.kakao)
                         }
 
                         override fun onSessionClosed(errorResult: ErrorResult?) {
@@ -266,7 +282,7 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
         },null)
     }
 
-    private fun dofinish(json : JsonObject, id : String, type : String) {
+    private fun dofinish(json : JsonObject, type : String) {
         val edit = PreferenceManager.getDefaultSharedPreferences(this).edit()
         edit.putString("type",type)
         edit.commit()
@@ -290,16 +306,62 @@ class LoginActivity : AppCompatActivity(), ISessionCallback, GoogleApiClient.OnC
         realm.executeTransaction {
             val my = it.where(MyInfo::class.java).findFirst()
             if(my == null) {
-                it.insert(MyInfo().set(json.get("name").asString, id))
+                it.insert(MyInfo().set(json.get("name").asString, json.get("id").asString))
                 Singleton.MyN = json.get("name").asString
             }
-            Singleton.MyId = id
+            Singleton.MyId = json.get("id").asString
         }
         realm.close()
-        Singleton.dokeyCheck()
 
-        startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-        finish()
+        Singleton.RetroService.getFriends(utoken).enqueue(object : Callback<JsonElement> {
+            override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
+                if(response.code() == 200) {
+                    val json = response.body()!!.asJsonArray
+                    val realm = Singleton.getNomalDB()
+                    for(j in json) {
+                        val jo = j.asJsonObject
+                        val f = realm.where(Peoples::class.java).equalTo("isFriend",true).equalTo("UserId",jo.get("_id").asString).findFirst()
+                        if(f == null) {
+                            val postbook = Singleton.postBook(this@LoginActivity)
+                            var isp = false
+                            while (postbook.moveToNext()) {
+                                val ph = Singleton.toPhoneNum(postbook.getString(0))
+                                if(jo.get("phone").asString == ph) {
+                                    realm.executeTransaction {
+                                        it.insert(Peoples().set(jo.get("_id").asString,postbook.getString(1),ph,true))
+                                    }
+                                    isp = true
+                                    break
+                                }
+                            }
+                            postbook.close()
+                            if(!isp) {
+                                realm.executeTransaction {
+                                    it.insert(Peoples().set(jo.get("_id").asString,jo.get("name").asString,jo.get("phone").asString,true))
+                                }
+                            }
+                        }
+                    }
+                    Singleton.dokeyCheck()
+                    realm.close()
+                    startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                    finish()
+                } else if(response.code() == 202) {
+                    if(response.body()!!.toString() == Codes.expireToken) {
+                        Singleton.resetToken(this@LoginActivity, {
+                            if(it)
+                                Singleton.RetroService.getFriends(utoken).enqueue(this)
+                             else
+                                Singleton.loginErrToast(this@LoginActivity)
+                        })
+                    } else Singleton.serverErrToast(this@LoginActivity, response.body()!!.toString())
+                } else Singleton.serverErrToast(this@LoginActivity, Codes.serverErr)
+            }
+
+            override fun onFailure(call: Call<JsonElement>?, t: Throwable?) {
+                Singleton.notOnlineToast(this@LoginActivity)
+            }
+        })
     }
 
     override fun onDestroy() {

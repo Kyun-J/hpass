@@ -1,5 +1,6 @@
 package com.kyun.hpass.Chatting.Activity
 
+import android.util.Log
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.BaseViewHolder
 import com.kyun.hpass.R

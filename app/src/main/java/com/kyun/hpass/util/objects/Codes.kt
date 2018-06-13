@@ -30,10 +30,9 @@ object Codes {
     val notUser = "100"
     val userFail = "101"
     val expireToken = "102"
-    val alreadyPH = "103"
+    val alreadyUser = "103"
 
     val serverErr = "99"
-
 
 
 }

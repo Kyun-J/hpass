@@ -8,10 +8,10 @@
         android:layout_height="wrap_content"
         android:layout_weight="1"
         android:gravity="center_vertical"
-        android:id="@+id/item_phone_search_name"/>
+        android:id="@+id/item_friend_search_name"/>
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:padding="15dp"
-        android:id="@+id/item_phone_search_btn"/>
+        android:id="@+id/item_friend_search_btn"/>
 </LinearLayout>

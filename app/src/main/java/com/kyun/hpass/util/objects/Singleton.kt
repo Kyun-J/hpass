@@ -3,8 +3,9 @@ package com.kyun.hpass.util.objects
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import android.os.AsyncTask
+import android.database.Cursor
 import android.preference.PreferenceManager
+import android.provider.ContactsContract
 import android.support.v4.app.FragmentActivity
 import android.support.v7.app.AppCompatActivity
 import com.google.gson.JsonElement
@@ -30,11 +31,11 @@ import com.kakao.auth.KakaoSDK
 import com.kakao.auth.Session
 import com.kakao.util.exception.KakaoException
 import com.kyun.hpass.R
+import com.kyun.hpass.Service.HService
 import com.kyun.hpass.realmDb.Basic.TMigrations
 import com.kyun.hpass.realmDb.Basic.Token
 import com.kyun.hpass.realmDb.BasicDB
 import com.kyun.hpass.realmDb.Nomal.MyInfo
-import com.kyun.hpass.util.isNetwrok
 import retrofit2.*
 
 /**
@@ -42,23 +43,25 @@ import retrofit2.*
  */
 object Singleton {
 
-    private var networkAsync : isNetwrok? = null
-
-    var realmKey : ByteArray? = null //realmdb key
-    var userToken : String? = null //token to server
-    var CheckList = ArrayList<()->Unit>() //check is realmkey is exsist
+    lateinit var realmKey : ByteArray //realmdb key
+    lateinit var userToken : String //token to server
     var MyId : String = "" //user id
     var MyN : String = "" //user name
+
+    private var CheckList = ArrayList<()->Unit>() //check is realmkey is exsist
+    val mChats = ArrayList<HService.ChatCallBack>()
+
+    private var isIniting : Boolean = false
 
     private val mConfig = RealmConfiguration.Builder() //realm config without key
             .name("Nomal.realm")
             .modules(NomalDB())
             .schemaVersion(0)
             .migration(AMigrations())
-    val tConfig = RealmConfiguration.Builder() //token realm config
+    private val tConfig = RealmConfiguration.Builder() //token realm config
             .name("Basic.realm")
             .modules(BasicDB())
-            .schemaVersion(0)
+            .schemaVersion(1)
             .migration(TMigrations())
             .build()
 
@@ -67,8 +70,22 @@ object Singleton {
             .addConverterFactory(GsonConverterFactory.create(GsonBuilder().setLenient().create()))
             .build().create(RetroService::class.java)
 
+    fun isinit() : Boolean {
+        return ::realmKey.isInitialized && realmKey.isNotEmpty()
+    }
+
+    fun postBook(context : Context) : Cursor {
+        return context.contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER, ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME),null,null,
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME+" COLLATE LOCALIZED ASC")
+    }
+
+    fun toPhoneNum(ph : String) : String {
+        return ph.replace("-","").replace("+82 ","0")
+    }
+
     fun isChattingRoom(app : Application, id : String) : Boolean { //check on top view is chattingactivity
-        return ((app as App).TopActivity as ChattingActivity).RoomId == id
+        return ((app as App).isForeground() && app.TopActivity is ChattingActivity && (app.TopActivity as ChattingActivity).RoomId == id)
     }
 
     fun longToDateString(time : Long) : String { //return date string
@@ -99,33 +116,72 @@ object Singleton {
         return tt + " " + hour + ":" + min
     }
 
-    fun init(app : App) {
-        isOnNetwork(app, {
-            if(it) {
-                val type = PreferenceManager.getDefaultSharedPreferences(app).getString("type","")
-                if (type != "") {
-                    if(Singleton.realmKey == null) {
-                        val trealm = getBasicDB()
-                        val token = trealm.where(Token::class.java).findFirst()?.token
-                        trealm.close()
-                        if(token != null)
-                        RetroService.simpleLogin(token).enqueue(object : Callback<JsonElement> {
-                            override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
-                                if(response.isSuccessful)
-                                    doinit(response.body()!!.asJsonObject)
-                                else if(response.errorBody()!!.string() == Codes.userFail)
-                                    serverErrToast(app,Codes.userFail)
-                                else networkErrToast(app)
-                            }
+    fun longToDateTimeString(time : Long) : String {
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = time
+        val year = cal.get(Calendar.YEAR).toString()
+        val month = cal.get(Calendar.MONTH) + 1
+        val date = cal.get(Calendar.DATE)
+        val hour = if(cal.get(Calendar.HOUR) == 0) 12 else cal.get(Calendar.HOUR)
+        val min = if(cal.get(Calendar.MINUTE) < 10) "0"+cal.get(Calendar.MINUTE) else cal.get(Calendar.MINUTE)
+        val tt = if(cal.get(Calendar.HOUR_OF_DAY) < 12) "오전" else "오후"
+        return year + "-" + month + "-" + date + " " + tt + " " + hour + ":" + min
+    }
 
-                            override fun onFailure(call: Call<JsonElement>?, t: Throwable?) {
-                                notOnlineToast(app)
-                            }
-                        })
+    fun init(context: Context) {
+        if(!isIniting) {
+            val type = PreferenceManager.getDefaultSharedPreferences(context).getString("type", "")
+            if (type != "" && (!::realmKey.isInitialized || realmKey.isNotEmpty())) {
+                val trealm = getBasicDB()
+                val token = trealm.where(Token::class.java).findFirst()?.token
+                trealm.close()
+                if (token != null) {
+                    isIniting = true
+                    isNetwork.listen {
+                        if (it)
+                            RetroService.simpleLogin(token).enqueue(object : Callback<JsonElement> {
+                                override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
+                                    if (response.isSuccessful)
+                                        doinit(response.body()!!.asJsonObject)
+                                    else if (response.errorBody()!!.string() == Codes.userFail) {
+                                        serverErrToast(context, Codes.userFail)
+                                        isIniting = false
+                                    } else {
+                                        networkErrToast(context)
+                                        isIniting = false
+                                    }
+                                }
+
+                                override fun onFailure(call: Call<JsonElement>?, t: Throwable?) {
+                                    notOnlineToast(context)
+                                    isIniting = false
+                                }
+                            })
                     }
                 }
             }
-        })
+        }
+    }
+
+    private fun doinit(json : JsonObject) {
+        val trealm = getBasicDB()
+        trealm.executeTransaction {
+            val to = it.where(Token::class.java).findFirst()
+            if(to == null) {
+                val nto = Token()
+                nto.token = json.get("token").asString
+                it.insert(nto)
+            } else to.token = json.get("token").asString
+        }
+        trealm.close()
+        userToken = json.get("token").asString
+        realmKey = Base64.decode(json.get("key").asString,Base64.DEFAULT)
+        val realm = Singleton.getNomalDB()
+        MyN = realm.where(MyInfo::class.java).findFirst()!!.Name
+        MyId = realm.where(MyInfo::class.java).findFirst()!!.Id
+        realm.close()
+        dokeyCheck()
+        isIniting = false
     }
 
     fun getNomalDB() : Realm {
@@ -136,23 +192,9 @@ object Singleton {
         return Realm.getInstance(tConfig)
     }
 
-    private fun doinit(json : JsonObject) {
-        val trealm = getBasicDB()
-        trealm.executeTransaction {
-            it.where(Token::class.java).findFirst()!!.token = json.get("token").asString
-        }
-        trealm.close()
-        userToken = json.get("token").asString
-        realmKey = Base64.decode(json.get("key").asString,Base64.DEFAULT)
-        val realm = Singleton.getNomalDB()
-        MyN = realm.where(MyInfo::class.java).findFirst()!!.Name
-        MyId = realm.where(MyInfo::class.java).findFirst()!!.Id
-        realm.close()
-        dokeyCheck()
-    }
 
     fun keyCheck(check: () -> Unit) {
-        if(realmKey != null) check()
+        if(::realmKey.isInitialized && realmKey.isNotEmpty()) check()
         else CheckList.add(check)
     }
 
@@ -160,19 +202,6 @@ object Singleton {
         for (c in CheckList) c()
         CheckList = ArrayList()
     }
-
-    fun isOnNetwork(app : App, listener : (Boolean) -> Unit) {
-        if(networkAsync == null || networkAsync!!.status == AsyncTask.Status.FINISHED) {
-            networkAsync = isNetwrok(app)
-            networkAsync?.addListener(listener)
-            networkAsync?.execute()
-        } else if(networkAsync!!.status == AsyncTask.Status.PENDING) {
-            networkAsync?.addListener(listener)
-            networkAsync?.execute()
-        }
-        else networkAsync?.addListener(listener)
-    }
-
 
     fun notOnlineToast(context: Context) {
         Toast.makeText(context,"인터넷이 연결되어 있지 않습니다. 인터넷에 연결해 주세요.", Toast.LENGTH_SHORT).show()
@@ -194,31 +223,31 @@ object Singleton {
         Toast.makeText(context,"로그인에 실패했습니다.",Toast.LENGTH_SHORT).show()
     }
 
-    fun resetToken(app : App, count : Int, res : (Boolean) -> Unit) {
-        if(count < Constant.retry) {
-            isOnNetwork(app, {
+    fun resetToken(context: Context, res : (Boolean) -> Unit) {
+        if(::userToken.isInitialized && userToken.isNotBlank()) {
+            isNetwork.listen {
                 if (it) {
-                    RetroService.simpleLogin(userToken!!).enqueue(object : Callback<JsonElement> {
+                    RetroService.simpleLogin(userToken).enqueue(object : Callback<JsonElement> {
                         override fun onResponse(call: Call<JsonElement>?, response: Response<JsonElement>) {
-                            if (response.isSuccessful) {
+                            if (response.code() == 200) {
                                 doinit(response.body()!!.asJsonObject)
                                 res(true)
-                            } else if (response.code() == 503 && response.errorBody()!!.string() == Codes.userFail) {
-                                loginErrToast(app)
+                            } else if (response.code() == 202 && response.body().toString() == Codes.userFail) {
+                                loginErrToast(context)
                                 res(false)
                             } else {
-                                serverErrToast(app, Codes.serverErr)
+                                serverErrToast(context, Codes.serverErr)
                                 res(false)
                             }
                         }
 
                         override fun onFailure(call: Call<JsonElement>?, t: Throwable?) {
-                            networkErrToast(app)
+                            networkErrToast(context)
                             res(false)
                         }
                     })
                 }
-            })
+            }
         }
     }
 
@@ -328,5 +357,12 @@ object Singleton {
         })
         Session.getCurrentSession().checkAndImplicitOpen()
         Session.getCurrentSession().open(KakaoSDK.getAdapter().getSessionConfig().getAuthTypes()[0],activity)
+    }
+
+    fun weightdp(isWidth : Boolean, maxWeight : Double, TargetWeight : Double) : Int {
+        if(isWidth)
+            return (Status.widthpix / (maxWeight*(1/TargetWeight))).toInt()
+        else
+            return ((Status.heightpix - Status.statusBarH) / (maxWeight*(1/TargetWeight))).toInt()
     }
 }

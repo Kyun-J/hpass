@@ -6,7 +6,7 @@ import android.content.Intent
 import android.os.Bundle
 import com.kakao.auth.*
 import com.kyun.hpass.Service.HService
-import com.kyun.hpass.util.objects.Singleton
+import com.kyun.hpass.util.objects.isNetwork
 import io.realm.Realm
 
 
@@ -17,10 +17,13 @@ class App : Application() {
 
     var mAppStatus = AppStatus.BACKGROUND
 
-    var TopActivity : Activity? = null
+    lateinit var TopActivity : Activity
+
+    private lateinit var ReturnForegroundListenerToHService : () -> Unit
 
     override fun onCreate() {
         super.onCreate()
+        isNetwork.init(this)
         Realm.init(this)
         KakaoSDK.init(KakaoSDKAdapter())
         startService(Intent(this, HService::class.java))
@@ -36,6 +39,10 @@ class App : Application() {
 
     fun isBackground(): Boolean {
         return mAppStatus == AppStatus.BACKGROUND
+    }
+
+    fun HServiceForegroundListener (listener : () -> Unit) {
+        ReturnForegroundListenerToHService = listener
     }
 
     enum class AppStatus {
@@ -59,11 +66,12 @@ class App : Application() {
         override fun onActivityResumed(p0: Activity?) {
         }
 
-        override fun onActivityStarted(p0: Activity?) {
+        override fun onActivityStarted(p0: Activity) {
             TopActivity = p0
             if (++running == 1) {
                 // running activity is 1,
                 // app must be returned from background just now (or first launch)
+                if(::ReturnForegroundListenerToHService.isInitialized) ReturnForegroundListenerToHService()
                 mAppStatus = AppStatus.RETURNED_TO_FOREGROUND
             } else if (running > 1) {
                 // 2 or more running activities,

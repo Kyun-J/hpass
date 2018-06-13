@@ -98,6 +98,8 @@
                 android:layout_height="wrap_content"
                 android:id="@+id/chat_navi_room_name_edit"
                 android:imeOptions="actionDone"
+                android:lines="1"
+                android:inputType="text"
                 app:layout_constraintTop_toBottomOf="@+id/chat_navi_room_name_txt"
                 app:layout_constraintLeft_toLeftOf="parent"
                 app:layout_constraintRight_toLeftOf="@+id/chat_navi_room_name_btn"/>

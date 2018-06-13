@@ -22,12 +22,12 @@ class ChattingListRecyclerAdapter : BaseQuickAdapter<ChattingListRecyclerItem,Ba
         //title
         helper.setText(R.id.chat_list_item_title,item.title)
         //nomber of users
-        if(item.users > 1) {
+        if(item.users > 2) {
             helper.setVisible(R.id.chat_list_item_users,true)
             helper.setText(R.id.chat_list_item_users,Integer.toString(item.users))
         }
         //alarm icon
-        if(item.alarm) {
+        if(!item.alarm) {
             helper.setVisible(R.id.chat_list_item_no_alarm,true)
         }
         //time
@@ -43,6 +43,6 @@ class ChattingListRecyclerAdapter : BaseQuickAdapter<ChattingListRecyclerItem,Ba
     }
 
     override fun onItemClick(adapter: BaseQuickAdapter<*, *>?, v: View, position: Int) {
-        v.context.startActivity(Intent(v.context, ChattingActivity::class.java).putExtra("id",this.data[position].id).putExtra("count",this.data[position].stack))
+        v.context.startActivity(Intent(v.context, ChattingActivity::class.java).putExtra("id",this.data[position].id))
     }
 }

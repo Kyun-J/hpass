@@ -1,7 +1,9 @@
 package com.kyun.hpass.FriendList
 
+import android.util.Log
 import com.chad.library.adapter.base.BaseMultiItemQuickAdapter
 import com.chad.library.adapter.base.BaseViewHolder
+import com.kyun.hpass.People.PeopleInfoDialog
 import com.kyun.hpass.R
 
 class FriendListAdapter : BaseMultiItemQuickAdapter<FriendListItem,BaseViewHolder> {
@@ -12,7 +14,7 @@ class FriendListAdapter : BaseMultiItemQuickAdapter<FriendListItem,BaseViewHolde
         this.setOnItemClickListener { adapter, view, position ->
             val item = getItem(position)
             if(item!!.itemtype == FriendListItem.friends) {
-
+                PeopleInfoDialog(mContext).setData(item.id,item.name).show()
             }
         }
     }
@@ -20,10 +22,10 @@ class FriendListAdapter : BaseMultiItemQuickAdapter<FriendListItem,BaseViewHolde
     override fun convert(helper: BaseViewHolder, item: FriendListItem) {
         when(item.itemtype) {
             FriendListItem.friends -> {
-                helper.setText(R.id.item_friend,item.contents)
+                helper.setText(R.id.item_friend,item.name)
             }
             FriendListItem.item -> {
-                helper.setText(R.id.item_friend_item,item.contents)
+                helper.setText(R.id.item_friend_item,item.name)
             }
         }
     }

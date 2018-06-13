@@ -15,7 +15,7 @@ import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
-class PhoneSearchActivity : AppCompatActivity() {
+class IdSearchActivity : AppCompatActivity() {
 
     private lateinit var adapter : FriendSearchAdapter
 
@@ -25,8 +25,8 @@ class PhoneSearchActivity : AppCompatActivity() {
         setSupportActionBar(search_toolbar)
         supportActionBar?.setHomeButtonEnabled(true)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = "연락처로 추가"
-        search_tip.text = "- 를 제외한 연락처를 입력해 주세요."
+        supportActionBar?.title = "아이디로 추가"
+        search_tip.text = "찾을 아이디를 입력해 주세요"
         search_edit.setOnEditorActionListener { textView, i, keyEvent ->
             if(i == EditorInfo.IME_ACTION_SEARCH) {
                 Search(textView.text.toString())
@@ -42,7 +42,7 @@ class PhoneSearchActivity : AppCompatActivity() {
     }
 
     private fun Search(msg : String) {
-        Singleton.RetroService.searchFriendByPH(Singleton.userToken,msg).enqueue(object : Callback<JsonElement> {
+        Singleton.RetroService.searchFriendById(Singleton.userToken,msg).enqueue(object : Callback<JsonElement> {
             override fun onResponse(call: Call<JsonElement>, response: Response<JsonElement>) {
                 if(response.code() == 200) {
                     if(response.body() is JsonObject) {
@@ -58,21 +58,20 @@ class PhoneSearchActivity : AppCompatActivity() {
                     }
                 } else if(response.code() == 202) {
                     if(response.body()!!.toString() == Codes.expireToken) {
-                        Singleton.resetToken(this@PhoneSearchActivity, {
+                        Singleton.resetToken(this@IdSearchActivity, {
                             if(!it) {
-                                Singleton.loginErrToast(this@PhoneSearchActivity)
+                                Singleton.loginErrToast(this@IdSearchActivity)
                             } else {
-                                Singleton.RetroService.searchFriendByPH(Singleton.userToken,msg).enqueue(this)
+                                Singleton.RetroService.searchFriendById(Singleton.userToken,msg).enqueue(this)
                             }
                         })
-                    } else Singleton.serverErrToast(this@PhoneSearchActivity, response.body()!!.toString() )
-                } else Singleton.serverErrToast(this@PhoneSearchActivity, Codes.serverErr)
+                    } else Singleton.serverErrToast(this@IdSearchActivity, response.body()!!.toString())
+                } else Singleton.serverErrToast(this@IdSearchActivity, Codes.serverErr)
             }
 
             override fun onFailure(call: Call<JsonElement>?, t: Throwable?) {
-                Singleton.notOnlineToast(this@PhoneSearchActivity)
+                Singleton.notOnlineToast(this@IdSearchActivity)
             }
         })
     }
-
 }

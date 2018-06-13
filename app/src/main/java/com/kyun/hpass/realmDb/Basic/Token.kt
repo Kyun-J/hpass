@@ -1,10 +1,8 @@
 package com.kyun.hpass.realmDb.Basic
 
-import io.realm.RealmModel
-import io.realm.annotations.RealmClass
+import io.realm.RealmObject
 
-@RealmClass
-open class Token : RealmModel {
+open class Token : RealmObject() {
 
     var token : String = ""
 }

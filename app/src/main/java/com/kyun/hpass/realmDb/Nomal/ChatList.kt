@@ -1,13 +1,13 @@
 package com.kyun.hpass.realmDb.Nomal
 
 import io.realm.RealmModel
+import io.realm.RealmObject
 import io.realm.annotations.RealmClass
 
 /**
  * Created by kyun on 2018. 3. 13..
  */
-@RealmClass
-open class ChatList : RealmModel {
+open class ChatList : RealmObject() {
 
     var RoomId : String = ""
     var ChatId : Int = 0

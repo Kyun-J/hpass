@@ -5,6 +5,7 @@ import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentPagerAdapter
 import com.kyun.hpass.Chatting.ChattingListFragment
 import com.kyun.hpass.FriendList.FriendListFragment
+import com.kyun.hpass.Map.MyMapFragment
 import com.kyun.hpass.Setting.SettingFragment
 
 /**
@@ -16,7 +17,8 @@ class MainPagerAdapter(fm : FragmentManager) : FragmentPagerAdapter(fm) {
         when(position) {
             0 -> return FriendListFragment()
             1 -> return ChattingListFragment()
-            2 -> return SettingFragment()
+            2 -> return MyMapFragment()
+            3 -> return SettingFragment()
             else -> return Fragment()
         }
     }
@@ -25,12 +27,13 @@ class MainPagerAdapter(fm : FragmentManager) : FragmentPagerAdapter(fm) {
         when(position) {
             0 -> return "지인"
             1 -> return "대화"
-            2 -> return "설정"
+            2 -> return "지도"
+            3 -> return "설정"
             else -> return ""
         }
     }
 
     override fun getCount(): Int {
-        return 3
+        return 4
     }
 }
